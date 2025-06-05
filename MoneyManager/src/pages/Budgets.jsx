@@ -255,13 +255,19 @@ const Budgets = () => {
 
       {/* Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
-          <div className="w-full max-w-2xl mx-auto my-8">
-            <CreateBudgetForm
-              onSubmit={handleCreateBudget}
-              onClose={() => setShowCreate(false)}
-            />
-          </div>
+        <div 
+          className="modal-backdrop fixed inset-0 z-[9999] flex items-center justify-center"
+          onClick={(e) => {
+            // Close modal when clicking on backdrop, but not on the modal content
+            if (e.target === e.currentTarget) {
+              setShowCreate(false);
+            }
+          }}
+        >
+          <CreateBudgetForm
+            onSubmit={handleCreateBudget}
+            onClose={() => setShowCreate(false)}
+          />
         </div>
       )}
     </section>

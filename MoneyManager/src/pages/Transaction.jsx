@@ -226,7 +226,15 @@ const Transaction = () => {
 </section>
 
 {showAdd && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+  <div 
+    className="modal-backdrop fixed inset-0 z-[9999] flex items-center justify-center"
+    onClick={(e) => {
+      // Close modal when clicking on backdrop, but not on the modal content
+      if (e.target === e.currentTarget) {
+        setShowAdd(false);
+      }
+    }}
+  >
     <AddTransactionForm
       onSubmit={handleAddTransaction}
       onClose={() => setShowAdd(false)}

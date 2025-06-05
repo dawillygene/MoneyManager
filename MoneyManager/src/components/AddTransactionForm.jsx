@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from 'framer-motion';
 
 const categories = [
   "Food & Dining",
@@ -12,6 +13,7 @@ const categories = [
 ];
 
 function AddTransactionForm({ onSubmit, onClose }) {
+  const modalRef = useRef(null);
   const [form, setForm] = useState({
     date: "",
     description: "",
@@ -31,38 +33,70 @@ function AddTransactionForm({ onSubmit, onClose }) {
     onSubmit(form);
   };
 
+  // Handle escape key to close modal and manage body scroll
+  useEffect(() => {
+    function handleEscapeKey(event) {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    }
+    
+    // Prevent body scroll when modal is open
+    document.body.classList.add('modal-open');
+    document.addEventListener('keydown', handleEscapeKey);
+    
+    // Focus the modal when it opens
+    if (modalRef.current) {
+      modalRef.current.focus();
+    }
+    
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [onClose]);
+
   return (
-    <div
-      className="bg-white rounded-2xl shadow-2xl px-4 py-6 mx-auto relative w-full max-w-md"
+    <motion.div
+      initial={{ y: 50, opacity: 0, scale: 0.95 }}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      exit={{ y: 50, opacity: 0, scale: 0.95 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+      ref={modalRef}
+      className="modal-content bg-white rounded-2xl shadow-2xl px-6 py-6 mx-4 relative w-full max-w-lg"
       style={{
-        borderTop: '6px solid var(--orange)',
-        boxShadow: '0 8px 32px 0 rgba(10,35,66,0.10)',
-        maxHeight: '80vh',
+        borderTop: '4px solid var(--orange)',
+        maxHeight: '90vh',
         overflowY: 'auto'
       }}
+      tabIndex="-1"
+      role="dialog"
+      aria-labelledby="modal-title"
+      aria-describedby="modal-description"
     >
       {/* Top icon and close button */}
       <div className="flex flex-col items-center mb-6">
         <div className="navy-bg rounded-full p-3 mb-2 shadow" style={{ backgroundColor: 'var(--navy)' }}>
           <i className="fas fa-receipt text-2xl" style={{ color: 'var(--orange)' }}></i>
         </div>
-        <h2 className="text-2xl font-bold navy-text mb-1" style={{ color: 'var(--navy)' }}>
+        <h2 id="modal-title" className="text-2xl font-bold navy-text mb-1" style={{ color: 'var(--navy)' }}>
           Add Transaction
         </h2>
-        <p className="text-gray-500 text-sm text-center">
+        <p id="modal-description" className="text-gray-500 text-sm text-center">
           Record a new income or expense for your account.
         </p>
         {typeof onClose === "function" && (
           <button
-            className="absolute top-4 right-4 text-gray-400 hover:text-orange-500 text-2xl"
+            className="absolute top-4 right-4 text-gray-400 hover:text-orange-500 text-2xl transition-colors"
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Close modal"
             type="button"
           >
             &times;
           </button>
         )}
       </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium navy-text mb-1" htmlFor="date" style={{ color: "var(--navy)" }}>
@@ -199,7 +233,7 @@ function AddTransactionForm({ onSubmit, onClose }) {
           Add Transaction
         </button>
       </form>
-    </div>
+    </motion.div>
   );
 }
 

@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { motion } from 'framer-motion';
 
 function AddFundsForm({ goalName, onSubmit, onClose }) {
+  const modalRef = useRef(null);
   const [form, setForm] = useState({
     amount: "",
     date: new Date().toISOString().slice(0, 10),
@@ -17,41 +19,73 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
     onSubmit(form);
   };
 
+  // Handle escape key to close modal and manage body scroll
+  useEffect(() => {
+    function handleEscapeKey(event) {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    }
+    
+    // Prevent body scroll when modal is open
+    document.body.classList.add('modal-open');
+    document.addEventListener('keydown', handleEscapeKey);
+    
+    // Focus the modal when it opens
+    if (modalRef.current) {
+      modalRef.current.focus();
+    }
+    
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [onClose]);
+
   return (
-    <div
-      className="bg-white rounded-2xl shadow-2xl px-4 py-6 mx-auto relative w-full max-w-md"
+    <motion.div
+      initial={{ y: 50, opacity: 0, scale: 0.95 }}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      exit={{ y: 50, opacity: 0, scale: 0.95 }}
+      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+      ref={modalRef}
+      className="modal-content bg-white rounded-2xl shadow-2xl px-8 py-5 mx-4 relative w-full max-w-2xl"
       style={{
-        borderTop: '6px solid var(--orange)',
-        boxShadow: '0 8px 32px 0 rgba(10,35,66,0.10)',
-        maxHeight: '80vh',
+        borderTop: '4px solid var(--orange)',
+        maxHeight: '85vh',
         overflowY: 'auto'
       }}
+      tabIndex="-1"
+      role="dialog"
+      aria-labelledby="modal-title"
+      aria-describedby="modal-description"
     >
       <div className="flex flex-col items-center mb-6">
         <div className="navy-bg rounded-full p-3 mb-2 shadow" style={{ backgroundColor: 'var(--navy)' }}>
           <i className="fas fa-piggy-bank text-2xl" style={{ color: 'var(--orange)' }}></i>
         </div>
-        <h2 className="text-2xl font-bold navy-text mb-1" style={{ color: 'var(--navy)' }}>
-          Add Funds {goalName ? `to "${goalName}"` : ""}
+        <h2 id="modal-title" className="text-2xl font-bold navy-text mb-1" style={{ color: 'var(--navy)' }}>
+          Add Funds
         </h2>
-        <p className="text-gray-500 text-sm text-center">
-          Enter the amount you want to add to your goal.
+        <p id="modal-description" className="text-gray-500 text-sm text-center">
+          Add money to your "{goalName}" goal.
         </p>
         {typeof onClose === "function" && (
           <button
-            className="absolute top-4 right-4 text-gray-400 hover:text-orange-500 text-2xl"
+            className="absolute top-4 right-4 text-gray-400 hover:text-orange-500 text-2xl transition-colors"
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Close modal"
             type="button"
           >
             &times;
           </button>
         )}
       </div>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium navy-text mb-1" htmlFor="amount" style={{ color: "var(--navy)" }}>
-            Amount
+            Amount to Add
           </label>
           <input
             type="number"
@@ -65,20 +99,21 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
               backgroundColor: "var(--light-grey)",
               color: "var(--navy)"
             }}
-            min="1"
+            min="0.01"
+            step="0.01"
+            placeholder="100.00"
             required
-            placeholder="e.g. 100"
           />
         </div>
+
         <div>
-          <label className="block text-sm font-medium navy-text mb-1" htmlFor="date" style={{ color: "var(--navy)" }}>
-            Date
+          <label className="block text-sm font-medium navy-text mb-1" htmlFor="source" style={{ color: "var(--navy)" }}>
+            Source of Funds
           </label>
-          <input
-            type="date"
-            id="date"
-            name="date"
-            value={form.date}
+          <select
+            id="source"
+            name="source"
+            value={form.source}
             onChange={handleChange}
             className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[var(--orange)]"
             style={{
@@ -87,16 +122,24 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
               color: "var(--navy)"
             }}
             required
-          />
+          >
+            <option value="">Select source</option>
+            <option value="salary">Salary</option>
+            <option value="savings">Savings</option>
+            <option value="bonus">Bonus</option>
+            <option value="gift">Gift</option>
+            <option value="other">Other</option>
+          </select>
         </div>
+
         <div>
-          <label className="block text-sm font-medium navy-text mb-1" htmlFor="note" style={{ color: "var(--navy)" }}>
-            Note (optional)
+          <label className="block text-sm font-medium navy-text mb-1" htmlFor="notes" style={{ color: "var(--navy)" }}>
+            Notes (Optional)
           </label>
           <textarea
-            id="note"
-            name="note"
-            value={form.note}
+            id="notes"
+            name="notes"
+            value={form.notes}
             onChange={handleChange}
             className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[var(--orange)]"
             style={{
@@ -105,9 +148,10 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
               color: "var(--navy)"
             }}
             rows={2}
-            placeholder="e.g. Bonus, savings, etc."
+            placeholder="Add any notes about this contribution"
           />
         </div>
+
         <button
           type="submit"
           className="w-full py-2 rounded-lg orange-bg text-white font-semibold shadow hover:opacity-90 transition text-lg mt-2"
@@ -117,7 +161,7 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
           Add Funds
         </button>
       </form>
-    </div>
+    </motion.div>
   );
 }
 

@@ -25,9 +25,9 @@ function App() {
         <Route
           path="*"
           element={
-            <>
+            <div className="flex flex-col h-screen overflow-hidden">
               <Navigation />
-              <div className="flex flex-col md:flex-row min-h-screen">
+              <div className="flex flex-1 min-h-0">
                 <SideBar />
                 <MainContent>
                   <Routes>
@@ -40,7 +40,7 @@ function App() {
                   </Routes>
                 </MainContent>
               </div>
-            </>
+            </div>
           }
         />
       </Routes>
