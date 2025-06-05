@@ -313,7 +313,7 @@ const Dashbord = () => {
           <div className="progress-fill bg-green-500" style={{ width: '60%' }}></div>
         </div>
       </div>
-    </div>
+    </div> 
 
     
     <div className="bg-white rounded-lg shadow p-4">
