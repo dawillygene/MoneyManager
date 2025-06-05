@@ -1,6 +1,24 @@
-import React from 'react'
+import React, { useState } from 'react'
+import AddGoalForm from '../components/AddGoalForm';
+import AddFundsForm from '../components/AddFundsForm';
 
 const Goals = () => {
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [showAddFunds, setShowAddFunds] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState(null);
+
+  const handleAddGoal = (newGoal) => {
+    // Logic to add the new goal
+    console.log('New Goal Added:', newGoal);
+    setShowAddGoal(false);
+  };
+
+  const handleAddFunds = (amount) => {
+    // Logic to add funds to the selected goal
+    console.log(`Added $${amount} to ${selectedGoal}`);
+    setShowAddFunds(false);
+  };
+
   return (
    <>
    <section id="goals" className="mb-12">
@@ -11,6 +29,7 @@ const Goals = () => {
     <div className="flex space-x-2">
       <button
         className="orange-bg text-white rounded-md px-3 py-1 text-sm hover:bg-opacity-90"
+        onClick={() => setShowAddGoal(true)}
       >
         <i className="fas fa-plus mr-2"></i> Add New Goal
       </button>
@@ -59,6 +78,7 @@ const Goals = () => {
           </div>
           <button
             className="text-sm navy-bg text-white px-3 py-1 rounded-md hover:bg-opacity-90"
+            onClick={() => { setSelectedGoal('Summer Vacation'); setShowAddFunds(true); }}
           >
             Add Funds
           </button>
@@ -106,6 +126,7 @@ const Goals = () => {
           </div>
           <button
             className="text-sm navy-bg text-white px-3 py-1 rounded-md hover:bg-opacity-90"
+            onClick={() => { setSelectedGoal('Emergency Fund'); setShowAddFunds(true); }}
           >
             Add Funds
           </button>
@@ -153,6 +174,7 @@ const Goals = () => {
           </div>
           <button
             className="text-sm navy-bg text-white px-3 py-1 rounded-md hover:bg-opacity-90"
+            onClick={() => { setSelectedGoal('New Car'); setShowAddFunds(true); }}
           >
             Add Funds
           </button>
@@ -223,6 +245,27 @@ const Goals = () => {
       </table>
     </div>
   </div>
+
+  {/* Add Goal Form - Modal */}
+  {showAddGoal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+      <AddGoalForm
+        onSubmit={handleAddGoal}
+        onClose={() => setShowAddGoal(false)}
+      />
+    </div>
+  )}
+
+  {/* Add Funds Form - Modal */}
+  {showAddFunds && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+      <AddFundsForm
+        goalName={selectedGoal?.name}
+        onSubmit={handleAddFunds}
+        onClose={() => setShowAddFunds(false)}
+      />
+    </div>
+  )}
 </section>
    </>
   )
