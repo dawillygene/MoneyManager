@@ -15,12 +15,10 @@ public class UserService {
     private PasswordEncoder passwordEncoder;
 
     public User registerUser(User user){
-        // Check if email already exists
         if (userRepository.findByEmail(user.getEmail()) != null) {
             throw new RuntimeException("Email already exists");
         }
 
-        // Encode password
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setPassword(passwordEncoder.encode(user.getConfirmPassword()));
 
