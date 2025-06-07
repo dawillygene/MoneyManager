@@ -26,13 +26,12 @@ function LoginForm() {
 
             const { accessToken, refreshToken } = response.data;
 
-            // Store tokens securely (e.g., in memory or httpOnly cookies)
-            // For this example, we'll store them in memory
             localStorage.setItem('accessToken', accessToken);
             localStorage.setItem('refreshToken', refreshToken);
 
             console.log('Login successful:', response.data);
             alert('Login successful');
+            window.location.href = '/dashboard'; 
         } catch (error) {
             console.error('Login failed:', error);
             alert('Login failed');
