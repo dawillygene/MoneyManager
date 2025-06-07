@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 
 function LoginForm() {
     const formRef = useRef(null);
@@ -15,13 +16,29 @@ function LoginForm() {
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Handle login logic here
-        console.log('Logging in user:', formData);
+        try {
+            const response = await axios.post('http://localhost:8080/api/auth/login', {
+                email: formData.email,
+                password: formData.password
+            });
+
+            const { accessToken, refreshToken } = response.data;
+
+            // Store tokens securely (e.g., in memory or httpOnly cookies)
+            // For this example, we'll store them in memory
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+
+            console.log('Login successful:', response.data);
+            alert('Login successful');
+        } catch (error) {
+            console.error('Login failed:', error);
+            alert('Login failed');
+        }
     };
 
-    // Focus management for accessibility
     useEffect(() => {
         if (formRef.current) {
             formRef.current.focus();

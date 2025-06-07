@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import axios from 'axios';
 
 function RegistrationForm() {
     const formRef = useRef(null);
@@ -19,13 +20,30 @@ function RegistrationForm() {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Handle registration logic here
-        console.log('Registering user:', formData);
+        if (formData.password !== formData.confirmPassword) {
+            alert('Passwords do not match');
+            return;
+        }
+
+        try {
+            const response = await axios.post('http://localhost:8080/api/auth/register', {
+                fullName: formData.fullName,
+                email: formData.email,
+                password: formData.password,
+                confirmPassword: formData.confirmPassword,
+                agreeToTerms: formData.agreeToTerms
+            });
+
+            console.log('Registration successful:', response.data);
+            alert('Registration successful');
+        } catch (error) {
+            console.error('Registration failed:', error);
+            alert('Registration failed');
+        }
     };
 
-    // Focus management for accessibility
     useEffect(() => {
         if (formRef.current) {
             formRef.current.focus();
@@ -61,7 +79,6 @@ function RegistrationForm() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Full Name and Email in one row for larger screens */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-base font-medium navy-text mb-2" htmlFor="fullName" style={{ color: 'var(--navy)' }}>
@@ -105,7 +122,6 @@ function RegistrationForm() {
                     </div>
                 </div>
 
-                {/* Password and Confirm Password in one row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-base font-medium navy-text mb-2" htmlFor="password" style={{ color: 'var(--navy)' }}>
@@ -149,7 +165,6 @@ function RegistrationForm() {
                     </div>
                 </div>
 
-                {/* Terms and conditions */}
                 <div className="flex items-start">
                     <input
                         type="checkbox"
