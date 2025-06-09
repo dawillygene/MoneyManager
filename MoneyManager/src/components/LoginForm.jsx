@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import api from './api'; 
 
 function LoginForm() {
     const formRef = useRef(null);
@@ -8,6 +8,8 @@ function LoginForm() {
         email: '',
         password: ''
     });
+    const [message, setMessage] = useState(null);
+    const [messageType, setMessageType] = useState(''); // 'success' or 'error'
 
     const handleChange = (e) => {
         setFormData({
@@ -19,22 +21,24 @@ function LoginForm() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('http://localhost:8080/api/auth/login', {
+            const response = await api.post('/login', {
                 email: formData.email,
                 password: formData.password
             });
 
-            const { accessToken, refreshToken } = response.data;
+            const { name, email } = response.data;
 
-            localStorage.setItem('accessToken', accessToken);
-            localStorage.setItem('refreshToken', refreshToken);
+            // Save user info to localStorage for Sidebar
+            localStorage.setItem('user', JSON.stringify({ name, email }));
 
-            console.log('Login successful:', response.data);
-            alert('Login successful');
-            window.location.href = '/dashboard'; 
+            setMessage('Login successful! Redirecting...');
+            setMessageType('success');
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 1200);
         } catch (error) {
-            console.error('Login failed:', error);
-            alert('Login failed');
+            setMessage(error.response?.data || 'Login failed');
+            setMessageType('error');
         }
     };
 
@@ -114,12 +118,23 @@ function LoginForm() {
                     />
                 </div>
                 
-                {/* Forgot password link */}
                 <div className="text-right">
                     <a href="/forgot-password" className="text-base hover:underline" style={{ color: 'var(--orange)' }}>
                         Forgot password?
                     </a>
                 </div>
+
+                {message && (
+                    <div
+                        className={`rounded-lg px-4 py-3 text-base mb-2 text-center ${
+                            messageType === 'success'
+                                ? 'bg-green-100 text-green-700 border border-green-300'
+                                : 'bg-red-100 text-red-700 border border-red-300'
+                        }`}
+                    >
+                        {message}
+                    </div>
+                )}
 
                 <button
                     type="submit"

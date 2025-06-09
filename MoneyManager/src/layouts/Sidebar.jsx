@@ -1,9 +1,20 @@
 import React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 const Sidebar = () => {
   const location = useLocation();
-  
+  const navigate = useNavigate();
+
+  // Get user info from localStorage
+  let user = {};
+  try {
+      const userStr = localStorage.getItem('user');
+      user = userStr && userStr !== 'undefined' ? JSON.parse(userStr) : {};
+  } catch {
+      user = {};
+  }
+  const displayName = user.fullName || user.name || user.email || 'User';
+
   const menuItems = [
     { path: '/dashboard', icon: 'fas fa-th-large', label: 'Dashboard' },
     { path: '/transactions', icon: 'fas fa-exchange-alt', label: 'Transactions' },
@@ -13,6 +24,14 @@ const Sidebar = () => {
   ];
 
   const isActive = (path) => location.pathname === path;
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   return (
     <>
@@ -125,12 +144,14 @@ const Sidebar = () => {
           <div className="flex items-center p-4 rounded-xl bg-white bg-opacity-5 backdrop-blur-sm">
             <div className="rounded-full h-12 w-12 flex items-center justify-center font-bold text-white shadow-lg" 
                  style={{ backgroundColor: 'var(--light-blue)' }}>
-              <span style={{ color: 'var(--navy)' }}>JD</span>
+              <span style={{ color: 'var(--navy)' }}>
+                {displayName[0] || 'U'}
+              </span>
             </div>
             <div className="ml-3 flex-1">
-              <div className="text-sm font-semibold text-white">John Doe</div>
+              <div className="text-sm font-semibold text-white">{displayName}</div>
               <div className="text-xs opacity-75" style={{ color: 'var(--light-blue)' }}>
-                john.doe@example.com
+                {user.email || ''}
               </div>
             </div>
             <div className="relative group">
@@ -140,8 +161,11 @@ const Sidebar = () => {
             </div>
           </div>
           
-          <button className="flex items-center w-full mt-4 py-2 px-4 rounded-lg transition-all hover:bg-red-500 hover:bg-opacity-20 group" 
-                  style={{ color: 'var(--orange)' }}>
+          <button
+            className="flex items-center w-full mt-4 py-2 px-4 rounded-lg transition-all hover:bg-red-500 hover:bg-opacity-20 group"
+            style={{ color: 'var(--orange)' }}
+            onClick={handleLogout}
+          >
             <div className="flex items-center justify-center w-8 h-8 rounded-lg mr-3 group-hover:bg-red-500 group-hover:bg-opacity-20 transition-all">
               <i className="fas fa-sign-out-alt text-sm"></i>
             </div>

@@ -11,6 +11,8 @@ function RegistrationForm() {
         confirmPassword: '',
         agreeToTerms: false
     });
+    const [message, setMessage] = useState(null);
+    const [messageType, setMessageType] = useState(''); // 'success' or 'error'
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -23,7 +25,8 @@ function RegistrationForm() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (formData.password !== formData.confirmPassword) {
-            alert('Passwords do not match');
+            setMessage('Passwords do not match');
+            setMessageType('error');
             return;
         }
 
@@ -36,12 +39,14 @@ function RegistrationForm() {
                 agreeToTerms: formData.agreeToTerms
             });
 
-            console.log('Registration successful:', response.data);
-            alert('Registration successful');
-            window.location.href = '/login'; 
+            setMessage('Registration successful! Redirecting to login...');
+            setMessageType('success');
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 1500);
         } catch (error) {
-            console.error('Registration failed:', error);
-            alert('Registration failed');
+            setMessage(error.response?.data || 'Registration failed');
+            setMessageType('error');
         }
     };
 
@@ -187,6 +192,18 @@ function RegistrationForm() {
                         </a>
                     </label>
                 </div>
+
+                {message && (
+                    <div
+                        className={`rounded-lg px-4 py-3 text-base mb-2 text-center ${
+                            messageType === 'success'
+                                ? 'bg-green-100 text-green-700 border border-green-300'
+                                : 'bg-red-100 text-red-700 border border-red-300'
+                        }`}
+                    >
+                        {message}
+                    </div>
+                )}
 
                 <button
                     type="submit"
