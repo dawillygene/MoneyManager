@@ -24,6 +24,9 @@ public class User {
     @Column(nullable = false)
     private boolean agreeToTerms;
 
+    @Column(nullable = true)
+    private String refreshToken;
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -71,5 +74,13 @@ public class User {
 
     public void setAgreeToTerms(boolean agreeToTerms) {
         this.agreeToTerms = agreeToTerms;
+    }
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
     }
 }

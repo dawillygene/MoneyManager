@@ -4,6 +4,8 @@ import com.example.moneymanager.models.User;
 import com.example.moneymanager.services.JwtService;
 import com.example.moneymanager.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,11 +31,15 @@ public class AuthController {
         String accessToken = jwtService.generateAccessToken(registeredUser);
         String refreshToken = jwtService.generateRefreshToken(registeredUser);
 
-        Map<String, String> tokens = new HashMap<>();
-        tokens.put("accessToken", accessToken);
-        tokens.put("refreshToken", refreshToken);
+        // Store the refresh token securely on the server side
+        userService.storeRefreshToken(registeredUser.getEmail(), refreshToken);
 
-        return ResponseEntity.ok(tokens);
+        // Set HTTP-only cookies
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Set-Cookie", "accessToken=" + accessToken + "; HttpOnly; Max-Age=3600; Path=/");
+        headers.add("Set-Cookie", "refreshToken=" + refreshToken + "; HttpOnly; Max-Age=604800; Path=/");
+
+        return new ResponseEntity<>(headers, HttpStatus.OK);
     }
 
     @PostMapping("/login")
@@ -43,13 +49,53 @@ public class AuthController {
 
         User user = userService.loginUser(email, password);
 
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+        }
+
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-        Map<String, String> tokens = new HashMap<>();
-        tokens.put("accessToken", accessToken);
-        tokens.put("refreshToken", refreshToken);
+        // Store the refresh token securely on the server side
+        userService.storeRefreshToken(user.getEmail(), refreshToken);
 
-        return ResponseEntity.ok(tokens);
+        // Set HTTP-only cookies
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Set-Cookie", "accessToken=" + accessToken + "; HttpOnly; Max-Age=3600; Path=/");
+        headers.add("Set-Cookie", "refreshToken=" + refreshToken + "; HttpOnly; Max-Age=604800; Path=/");
+
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put("name", user.getFullName());
+        responseMap.put("email", user.getEmail());
+
+        return new ResponseEntity<>(responseMap, headers, HttpStatus.OK);
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@CookieValue("refreshToken") String refreshToken) {
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid refresh token");
+        }
+
+        String email = jwtService.validateRefreshToken(refreshToken);
+
+        User user = userService.getUserByEmail(email);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid refresh token");
+        }
+
+        // Generate new tokens
+        String newAccessToken = jwtService.generateAccessToken(user);
+        String newRefreshToken = jwtService.generateRefreshToken(user);
+
+        // Update the refresh token securely on the server side
+        userService.storeRefreshToken(user.getEmail(), newRefreshToken);
+
+        // Set HTTP-only cookies
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Set-Cookie", "accessToken=" + newAccessToken + "; HttpOnly; Max-Age=3600; Path=/");
+        headers.add("Set-Cookie", "refreshToken=" + newRefreshToken + "; HttpOnly; Max-Age=604800; Path=/");
+
+        return new ResponseEntity<>(headers, HttpStatus.OK);
     }
 }

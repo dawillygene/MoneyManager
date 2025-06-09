@@ -4,6 +4,7 @@ import com.example.moneymanager.models.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +27,7 @@ public class JwtService {
     public String generateAccessToken(User user) {
         return Jwts.builder()
                 .subject(user.getEmail())
+                .claim("name", user.getFullName())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenValidity))
                 .signWith(getSigningKey())
@@ -47,5 +49,15 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public String validateRefreshToken(String refreshToken) {
+        try {
+            Claims claims = extractClaims(refreshToken);
+            String email = claims.getSubject();
+            return email;
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid refresh token");
+        }
     }
 }
