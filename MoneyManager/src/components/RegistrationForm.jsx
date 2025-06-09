@@ -38,7 +38,7 @@ function RegistrationForm() {
 
             console.log('Registration successful:', response.data);
             alert('Registration successful');
-            window.location.href = '/login'; // <-- Add this line for redirect
+            window.location.href = '/login'; 
         } catch (error) {
             console.error('Registration failed:', error);
             alert('Registration failed');

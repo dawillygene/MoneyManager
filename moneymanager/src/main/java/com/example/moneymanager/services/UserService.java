@@ -20,7 +20,6 @@ public class UserService {
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setPassword(passwordEncoder.encode(user.getConfirmPassword()));
 
         return userRepository.save(user);
     }
