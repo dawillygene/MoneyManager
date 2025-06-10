@@ -27,6 +27,7 @@ public class JwtService {
     public String generateAccessToken(User user) {
         String token = Jwts.builder()
                 .subject(user.getEmail())
+                .claim("userId", user.getId().toString())
                 .claim("name", user.getFullName())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenValidity))
