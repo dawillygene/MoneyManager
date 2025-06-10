@@ -25,39 +25,51 @@ public class JwtService {
     }
 
     public String generateAccessToken(User user) {
-        return Jwts.builder()
+        String token = Jwts.builder()
                 .subject(user.getEmail())
                 .claim("name", user.getFullName())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessTokenValidity))
                 .signWith(getSigningKey())
                 .compact();
+        System.out.println("Generated Access Token: " + token);
+        return token;
     }
 
     public String generateRefreshToken(User user) {
-        return Jwts.builder()
+        String token = Jwts.builder()
                 .subject(user.getEmail())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshTokenValidity))
                 .signWith(getSigningKey())
                 .compact();
+        System.out.println("Generated Refresh Token: " + token);
+        return token;
     }
 
     public Claims extractClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(getSigningKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        try {
+            Claims claims = Jwts.parser()
+                    .verifyWith(getSigningKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            System.out.println("Parsed Claims: " + claims);
+            return claims;
+        } catch (Exception e) {
+            System.out.println("Error parsing token: " + e.getMessage());
+            throw new RuntimeException("Invalid token", e);
+        }
     }
-
     public String validateRefreshToken(String refreshToken) {
         try {
             Claims claims = extractClaims(refreshToken);
             String email = claims.getSubject();
+            System.out.println("Validated Refresh Token for Email: " + email);
             return email;
         } catch (Exception e) {
-            throw new RuntimeException("Invalid refresh token");
+            System.out.println("Error validating refresh token: " + e.getMessage());
+            throw new RuntimeException("Invalid refresh token", e);
         }
     }
 }
