@@ -21,7 +21,7 @@ function LoginForm() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await api.post('/login', {
+            const response = await api.post('/auth/login', {
                 email: formData.email,
                 password: formData.password
             });

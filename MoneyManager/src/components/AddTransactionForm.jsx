@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from './api'; 
 
 const categories = [
   "Food & Dining",
@@ -12,7 +13,7 @@ const categories = [
   "Other"
 ];
 
-function AddTransactionForm({ onSubmit, onClose }) {
+function AddTransactionForm({ onSubmit, onClose, fetchTransactions }) {
   const modalRef = useRef(null);
   const [form, setForm] = useState({
     date: "",
@@ -28,10 +29,30 @@ function AddTransactionForm({ onSubmit, onClose }) {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(form);
-  };
+    try {
+        const response = await api.post('/transactions', form, {
+            withCredentials: true, // Keep this if your backend needs cookies
+        });
+        const newTransaction = response.data;
+
+        if (typeof onSubmit === 'function') {
+          onSubmit(newTransaction); // Update the transaction list in parent
+        }
+
+        if (typeof fetchTransactions === 'function') {
+          fetchTransactions(); // Refresh the list from backend (optional)
+        }
+
+        if (typeof onClose === 'function') {
+          onClose(); // Close modal after successful submit
+        }
+
+    } catch (error) {
+        console.error('Failed to add transaction:', error);
+    }
+};
 
   // Handle escape key to close modal and manage body scroll
   useEffect(() => {
