@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import api from './api'; 
+import { useNavigate } from 'react-router-dom';
+import { authService } from '../api';
 
 function LoginForm() {
+    const navigate = useNavigate();
     const formRef = useRef(null);
     const [formData, setFormData] = useState({
         email: '',
         password: ''
     });
     const [message, setMessage] = useState(null);
-    const [messageType, setMessageType] = useState(''); // 'success' or 'error'
+    const [messageType, setMessageType] = useState(''); 
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleChange = (e) => {
         setFormData({
@@ -20,25 +23,30 @@ function LoginForm() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsLoading(true);
+        
         try {
-            const response = await api.post('/auth/login', {
+            const result = await authService.login({
                 email: formData.email,
                 password: formData.password
             });
 
-            const { name, email } = response.data;
-
-            // Save user info to localStorage for Sidebar
-            localStorage.setItem('user', JSON.stringify({ name, email }));
-
-            setMessage('Login successful! Redirecting...');
-            setMessageType('success');
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 1200);
+            if (result.success) {
+                setMessage('Login successful! Redirecting...');
+                setMessageType('success');
+                
+                setTimeout(() => {
+                    navigate(result.redirectRoute || '/dashboard');
+                }, 1500);
+            } else {
+                setMessage(result.message || 'Login failed');
+                setMessageType('error');
+            }
         } catch (error) {
-            setMessage(error.response?.data || 'Login failed');
+            setMessage('An unexpected error occurred. Please try again.');
             setMessageType('error');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -50,16 +58,11 @@ function LoginForm() {
 
     return (
         <motion.div
-            initial={{ y: 50, opacity: 0, scale: 0.95 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             ref={formRef}
-            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl px-12 py-10"
-            style={{
-                borderTop: '4px solid var(--orange)',
-                maxHeight: '90vh',
-                overflowY: 'auto'
-            }}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-8"
             tabIndex="-1"
             role="main"
             aria-labelledby="login-title"
@@ -117,12 +120,6 @@ function LoginForm() {
                         required
                     />
                 </div>
-                
-                <div className="text-right">
-                    <a href="/forgot-password" className="text-base hover:underline" style={{ color: 'var(--orange)' }}>
-                        Forgot password?
-                    </a>
-                </div>
 
                 {message && (
                     <div
@@ -138,11 +135,14 @@ function LoginForm() {
 
                 <button
                     type="submit"
-                    className="w-full py-3 rounded-lg orange-bg text-white font-semibold shadow hover:opacity-90 transition text-xl"
+                    disabled={isLoading}
+                    className={`w-full text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 text-base ${
+                        isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+                    }`}
                     style={{ backgroundColor: 'var(--orange)' }}
                 >
-                    <i className="fas fa-sign-in-alt mr-2"></i>
-                    Login
+                    <i className={`fas ${isLoading ? 'fa-spinner fa-spin' : 'fa-sign-in-alt'} mr-2`}></i>
+                    {isLoading ? 'Logging in...' : 'Login'}
                 </button>
             </form>
 

@@ -1,52 +1,87 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { authService } from '../api';
+
+// Cookie utility functions
+const setCookie = (name, value, maxAge = null) => {
+    let cookieString = `${name}=${value}; path=/; SameSite=Lax`;
+    if (maxAge) {
+        cookieString += `; max-age=${maxAge}`;
+    }
+    document.cookie = cookieString;
+};
 
 function RegistrationForm() {
+    const navigate = useNavigate();
     const formRef = useRef(null);
     const [formData, setFormData] = useState({
-        fullName: '',
+        name: '',
         email: '',
         password: '',
-        confirmPassword: '',
-        agreeToTerms: false
+        confirmPassword: ''
     });
     const [message, setMessage] = useState(null);
     const [messageType, setMessageType] = useState(''); // 'success' or 'error'
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        setFormData((prevData) => ({
-            ...prevData,
-            [name]: type === 'checkbox' ? checked : value
-        }));
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value
+        });
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsLoading(true);
+
+        // Client-side validation
         if (formData.password !== formData.confirmPassword) {
-            setMessage('Passwords do not match');
+            setMessage('Passwords do not match.');
             setMessageType('error');
+            setIsLoading(false);
+            return;
+        }
+
+        if (formData.password.length < 6) {
+            setMessage('Password must be at least 6 characters long.');
+            setMessageType('error');
+            setIsLoading(false);
             return;
         }
 
         try {
-            const response = await axios.post('http://localhost:8080/api/auth/register', {
-                fullName: formData.fullName,
+            const result = await authService.register({
+                name: formData.name,
                 email: formData.email,
                 password: formData.password,
-                confirmPassword: formData.confirmPassword,
-                agreeToTerms: formData.agreeToTerms
+                confirmPassword: formData.confirmPassword
             });
 
-            setMessage('Registration successful! Redirecting to login...');
-            setMessageType('success');
-            setTimeout(() => {
-                window.location.href = '/login';
-            }, 1500);
+            if (result.success) {
+                // Save user info to cookies instead of localStorage
+                setCookie('user', JSON.stringify({
+                    name: result.user.name,
+                    email: result.user.email
+                }), 604800); // 7 days
+
+                setMessage('Registration successful! Redirecting to dashboard...');
+                setMessageType('success');
+                
+                // Use React Router navigation instead of window.location
+                setTimeout(() => {
+                    navigate('/dashboard');
+                }, 1500);
+            } else {
+                setMessage(result.message);
+                setMessageType('error');
+            }
         } catch (error) {
-            setMessage(error.response?.data || 'Registration failed');
+            setMessage('An unexpected error occurred. Please try again.');
             setMessageType('error');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -58,16 +93,11 @@ function RegistrationForm() {
 
     return (
         <motion.div
-            initial={{ y: 50, opacity: 0, scale: 0.95 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             ref={formRef}
-            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl px-12 py-10"
-            style={{
-                borderTop: '4px solid var(--orange)',
-                maxHeight: '90vh',
-                overflowY: 'auto'
-            }}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-8"
             tabIndex="-1"
             role="main"
             aria-labelledby="register-title"
@@ -80,21 +110,21 @@ function RegistrationForm() {
                     Create Account
                 </h2>
                 <p className="text-gray-500 text-base text-center">
-                    Join Money Manager and start managing your finances
+                    Join Money Manager to take control of your finances
                 </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-base font-medium navy-text mb-2" htmlFor="fullName" style={{ color: 'var(--navy)' }}>
+                        <label className="block text-base font-medium navy-text mb-2" htmlFor="name" style={{ color: 'var(--navy)' }}>
                             Full Name
                         </label>
                         <input
                             type="text"
-                            id="fullName"
-                            name="fullName"
-                            value={formData.fullName}
+                            id="name"
+                            name="name"
+                            value={formData.name}
                             onChange={handleChange}
                             className="border rounded-lg px-4 py-3 w-full text-base focus:outline-none focus:ring-2 focus:ring-[var(--orange)]"
                             style={{
@@ -102,7 +132,7 @@ function RegistrationForm() {
                                 backgroundColor: 'var(--light-grey)',
                                 color: 'var(--navy)'
                             }}
-                            placeholder="John Doe"
+                            placeholder="Enter your full name"
                             required
                         />
                     </div>
@@ -122,7 +152,7 @@ function RegistrationForm() {
                                 backgroundColor: 'var(--light-grey)',
                                 color: 'var(--navy)'
                             }}
-                            placeholder="john@example.com"
+                            placeholder="Enter your email"
                             required
                         />
                     </div>
@@ -171,28 +201,6 @@ function RegistrationForm() {
                     </div>
                 </div>
 
-                <div className="flex items-start">
-                    <input
-                        type="checkbox"
-                        id="agreeToTerms"
-                        name="agreeToTerms"
-                        checked={formData.agreeToTerms}
-                        onChange={handleChange}
-                        className="mt-1 mr-3"
-                        required
-                    />
-                    <label htmlFor="agreeToTerms" className="text-base text-gray-600">
-                        I agree to the{' '}
-                        <a href="/terms" className="hover:underline" style={{ color: 'var(--orange)' }}>
-                            Terms of Service
-                        </a>{' '}
-                        and{' '}
-                        <a href="/privacy" className="hover:underline" style={{ color: 'var(--orange)' }}>
-                            Privacy Policy
-                        </a>
-                    </label>
-                </div>
-
                 {message && (
                     <div
                         className={`rounded-lg px-4 py-3 text-base mb-2 text-center ${
@@ -207,11 +215,14 @@ function RegistrationForm() {
 
                 <button
                     type="submit"
-                    className="w-full py-3 rounded-lg orange-bg text-white font-semibold shadow hover:opacity-90 transition text-xl"
+                    disabled={isLoading}
+                    className={`w-full text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 text-base ${
+                        isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+                    }`}
                     style={{ backgroundColor: 'var(--orange)' }}
                 >
-                    <i className="fas fa-user-plus mr-2"></i>
-                    Create Account
+                    <i className={`fas ${isLoading ? 'fa-spinner fa-spin' : 'fa-user-plus'} mr-2`}></i>
+                    {isLoading ? 'Creating Account...' : 'Create Account'}
                 </button>
             </form>
 

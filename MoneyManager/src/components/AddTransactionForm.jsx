@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from './api'; 
+import { transactionService } from '../api';
 
 const categories = [
   "Food & Dining",
@@ -20,39 +20,55 @@ function AddTransactionForm({ onSubmit, onClose, fetchTransactions }) {
     description: "",
     category: "",
     amount: "",
-    type: "Expense",
+    type: "expense",
     notes: ""
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
     try {
-        const response = await api.post('/transactions', form, {
-            withCredentials: true, // Keep this if your backend needs cookies
-        });
-        const newTransaction = response.data;
+      // Prepare data for API
+      const transactionData = {
+        amount: parseFloat(form.amount),
+        description: form.description,
+        category: form.category,
+        type: form.type.toLowerCase(), // Convert to lowercase for API
+        date: form.date,
+        notes: form.notes || ''
+      };
 
-        if (typeof onSubmit === 'function') {
-          onSubmit(newTransaction); // Update the transaction list in parent
-        }
+      const newTransaction = await transactionService.create(transactionData);
 
-        if (typeof fetchTransactions === 'function') {
-          fetchTransactions(); // Refresh the list from backend (optional)
-        }
+      if (typeof onSubmit === 'function') {
+        onSubmit(newTransaction); // Update the transaction list in parent
+      }
 
-        if (typeof onClose === 'function') {
-          onClose(); // Close modal after successful submit
-        }
+      if (typeof fetchTransactions === 'function') {
+        fetchTransactions(); // Refresh the list from backend (optional)
+      }
+
+      if (typeof onClose === 'function') {
+        onClose(); // Close modal after successful submit
+      }
 
     } catch (error) {
-        console.error('Failed to add transaction:', error);
+      setError(error.response?.data?.message || 'Failed to add transaction. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-};
+  };
 
   // Handle escape key to close modal and manage body scroll
   useEffect(() => {
@@ -221,8 +237,8 @@ function AddTransactionForm({ onSubmit, onClose, fetchTransactions }) {
               }}
               required
             >
-              <option value="Expense">Expense</option>
-              <option value="Income">Income</option>
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
             </select>
           </div>
         </div>
@@ -245,13 +261,23 @@ function AddTransactionForm({ onSubmit, onClose, fetchTransactions }) {
             placeholder="Optional"
           />
         </div>
+
+        {error && (
+          <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm mb-4">
+            {error}
+          </div>
+        )}
+
         <button
           type="submit"
-          className="w-full py-2 rounded-lg orange-bg text-white font-semibold shadow hover:opacity-90 transition text-lg mt-2"
+          disabled={isLoading}
+          className={`w-full py-2 rounded-lg orange-bg text-white font-semibold shadow transition text-lg mt-2 ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+          }`}
           style={{ backgroundColor: "var(--orange)" }}
         >
-          <i className="fas fa-plus mr-2"></i>
-          Add Transaction
+          <i className={`fas ${isLoading ? 'fa-spinner fa-spin' : 'fa-plus'} mr-2`}></i>
+          {isLoading ? 'Adding...' : 'Add Transaction'}
         </button>
       </form>
     </motion.div>

@@ -1,7 +1,86 @@
-import React from 'react'
-import LoginForm from '../components/LoginForm'
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import LoginForm from '../components/LoginForm';
+import { authService } from '../api/authService';
+import { tokenStorage } from '../api/tokenStorage';
+import API_CONFIG from '../api/config';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    const checkExistingAuth = async () => {
+      try {
+        try {
+          const response = await fetch(`${API_CONFIG.FULL_API_URL}/auth/verify`, {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.accessToken) {
+              tokenStorage.setAccessToken(data.accessToken);
+              tokenStorage.setLoginStatus();
+              
+              if (data.user) {
+                const setCookie = (name, value, maxAge = null) => {
+                  let cookieString = `${name}=${value}; path=/; SameSite=Lax`;
+                  if (maxAge) {
+                    cookieString += `; max-age=${maxAge}`;
+                  }
+                  document.cookie = cookieString;
+                };
+                
+                setCookie('user', JSON.stringify({
+                  name: data.user.name,
+                  email: data.user.email
+                }), 604800);
+              }
+            }
+            
+            const redirectRoute = tokenStorage.getLastRoute();
+            tokenStorage.clearLastRoute();
+            navigate(redirectRoute);
+            return;
+          } else {
+            const errorData = await response.json();
+          }
+        } catch (verifyError) {
+        }
+        
+        const hasLoginStatus = authService.isAuthenticated();
+        
+        if (hasLoginStatus) {
+          const redirectRoute = tokenStorage.getLastRoute();
+          tokenStorage.clearLastRoute();
+          navigate(redirectRoute);
+          return;
+        }
+        
+      } catch (error) {
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkExistingAuth();
+  }, [navigate]);
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center" 
+           style={{ backgroundColor: 'var(--light-grey)' }}>
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <span className="text-gray-600">Checking authentication...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" 
          style={{ 
@@ -60,7 +139,7 @@ const LoginPage = () => {
         <p>&copy; 2025 Money Manager. Secure financial management.</p>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default LoginPage
+export default LoginPage;

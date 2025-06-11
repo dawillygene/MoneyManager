@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from 'framer-motion';
+import { goalService } from '../api';
 
 function AddGoalForm({ onSubmit, onClose }) {
   const modalRef = useRef(null);
@@ -11,6 +12,8 @@ function AddGoalForm({ onSubmit, onClose }) {
     targetDate: "",
     icon: "fa-bullseye"
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const icons = [
     { value: "fa-plane-departure", label: "Vacation" },
@@ -25,11 +28,38 @@ function AddGoalForm({ onSubmit, onClose }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(form);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Prepare data for API
+      const goalData = {
+        name: form.name,
+        targetAmount: parseFloat(form.targetAmount),
+        currentAmount: parseFloat(form.currentAmount) || 0,
+        targetDate: form.targetDate,
+        description: form.description || '',
+        icon: form.icon
+      };
+
+      const newGoal = await goalService.create(goalData);
+      
+      // Call parent onSubmit with the created goal
+      onSubmit(newGoal);
+      
+      // Close modal on success
+      onClose();
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to create goal. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle escape key to close modal and manage body scroll
@@ -231,13 +261,22 @@ function AddGoalForm({ onSubmit, onClose }) {
           />
         </div>
 
+        {error && (
+          <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm mb-4">
+            {error}
+          </div>
+        )}
+
         <button
           type="submit"
-          className="w-full py-2 rounded-lg orange-bg text-white font-semibold shadow hover:opacity-90 transition text-lg mt-2"
+          disabled={isLoading}
+          className={`w-full py-2 rounded-lg orange-bg text-white font-semibold shadow transition text-lg mt-2 ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+          }`}
           style={{ backgroundColor: "var(--orange)" }}
         >
-          <i className="fas fa-plus mr-2"></i>
-          Add Goal
+          <i className={`fas ${isLoading ? 'fa-spinner fa-spin' : 'fa-plus'} mr-2`}></i>
+          {isLoading ? 'Creating...' : 'Add Goal'}
         </button>
       </form>
     </motion.div>

@@ -1,30 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AddTransactionForm from '../components/AddTransactionForm';
-
-// EXAMPLE: Replace with your actual transaction data source!
-const initialTransactions = [
-  // ... your transaction objects here (date, description, category, amount, type: 'Income' or 'Expense') ...
-];
+import { transactionService } from '../api';
 
 const categoryOptions = [
   { value: "all", label: "All Categories" },
   { value: "housing", label: "Housing" },
-  { value: "food", label: "Food & Dining" },
+  { value: "food & dining", label: "Food & Dining" },
   { value: "transportation", label: "Transportation" },
   { value: "entertainment", label: "Entertainment" },
   { value: "shopping", label: "Shopping" },
   { value: "income", label: "Income" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "other", label: "Other" },
 ];
 
 const Transaction = () => {
   const [showAdd, setShowAdd] = useState(false);
-  const [transactions, setTransactions] = useState(initialTransactions);
+  const [transactions, setTransactions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Filter states
   const [typeFilter, setTypeFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dateRange, setDateRange] = useState("this-month");
   const [search, setSearch] = useState("");
+
+  // Fetch transactions from API
+  const fetchTransactions = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await transactionService.getAll();
+      setTransactions(data);
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error);
+      setError('Failed to load transactions. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load transactions on component mount
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
 
   const handleAddTransaction = (data) => {
     setTransactions([data, ...transactions]);
@@ -146,83 +166,126 @@ const Transaction = () => {
     </div>
   </div>
 
-  {/* Transactions Table */}
-  <div className="bg-white rounded-lg shadow overflow-hidden">
-    <div className="table-responsive">
-      <table className="w-full">
-        <thead className="navy-bg text-white">
-          <tr>
-            <th className="py-3 px-4 text-left">Date</th>
-            <th className="py-3 px-4 text-left">Description</th>
-            <th className="py-3 px-4 text-left">Category</th>
-            <th className="py-3 px-4 text-right">Amount</th>
-            <th className="py-3 px-4 text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredTransactions.map((tx, idx) => (
-            <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-              <td className="py-3 px-4 text-sm">{new Date(tx.date).toLocaleDateString()}</td>
-              <td className="py-3 px-4">
-                <div className="flex items-center">
-                  <div
-                    className={`rounded-full p-1.5 mr-2 text-xs ${
-                      tx.type === 'Income'
-                        ? 'bg-green-100 text-green-500'
-                        : 'bg-red-100 text-red-500'
-                    }`}
-                  >
-                    <i className={`fas ${tx.type === 'Income' ? 'fa-plus' : 'fa-minus'}`}></i>
-                  </div>
-                  <span className="text-sm">{tx.description}</span>
-                </div>
-              </td>
-              <td className="py-3 px-4 text-sm">{tx.category}</td>
-              <td className="py-3 px-4 text-sm text-right">
-                {tx.type === 'Income' ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
-              </td>
-              <td className="py-3 px-4 text-center">
-                <button className="text-blue-500 hover:text-blue-700 mx-1">
-                  <i className="fas fa-edit"></i>
-                </button>
-                <button className="text-red-500 hover:text-red-700 mx-1">
-                  <i className="fas fa-trash"></i>
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-
-
-    <div
-      className="py-3 px-4 border-t border-gray-200 flex items-center justify-between"
-    >
-      <div className="text-sm text-gray-500">
-        Showing {filteredTransactions.length} of {transactions.length} transactions
-      </div>
-      <div className="flex space-x-1">
-        <button
-          className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50"
+  {/* Error message */}
+  {error && (
+    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+      <div className="flex">
+        <div className="py-1">
+          <i className="fas fa-exclamation-circle mr-2"></i>
+          {error}
+        </div>
+        <button 
+          onClick={fetchTransactions}
+          className="ml-auto text-red-700 hover:text-red-900"
         >
-          Previous
-        </button>
-        <button className="px-3 py-1 navy-bg text-white rounded-md text-sm">
-          1
-        </button>
-        <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
-          2
-        </button>
-        <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
-          3
-        </button>
-        <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
-          Next
+          <i className="fas fa-refresh"></i> Retry
         </button>
       </div>
     </div>
-  </div>
+  )}
+
+  {/* Loading state */}
+  {isLoading ? (
+    <div className="bg-white rounded-lg shadow p-8 text-center">
+      <i className="fas fa-spinner fa-spin text-3xl text-gray-400 mb-4"></i>
+      <p className="text-gray-500">Loading transactions...</p>
+    </div>
+  ) : (
+    /* Transactions Table */
+    <div className="bg-white rounded-lg shadow overflow-hidden">
+      {filteredTransactions.length === 0 ? (
+        <div className="p-8 text-center">
+          <i className="fas fa-receipt text-4xl text-gray-300 mb-4"></i>
+          <h3 className="text-lg font-medium text-gray-500 mb-2">No transactions found</h3>
+          <p className="text-gray-400 mb-4">
+            {transactions.length === 0 
+              ? "Start by adding your first transaction!" 
+              : "Try adjusting your filters to see more results."
+            }
+          </p>
+          <button
+            className="orange-bg text-white rounded-md px-4 py-2 text-sm hover:bg-opacity-90"
+            onClick={() => setShowAdd(true)}
+          >
+            <i className="fas fa-plus mr-2"></i> Add First Transaction
+          </button>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <table className="w-full">
+            <thead className="navy-bg text-white">
+              <tr>
+                <th className="py-3 px-4 text-left">Date</th>
+                <th className="py-3 px-4 text-left">Description</th>
+                <th className="py-3 px-4 text-left">Category</th>
+                <th className="py-3 px-4 text-right">Amount</th>
+                <th className="py-3 px-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTransactions.map((tx, idx) => (
+                <tr key={tx.id || idx} className="border-b border-gray-200 hover:bg-gray-50">
+                  <td className="py-3 px-4 text-sm">{new Date(tx.date).toLocaleDateString()}</td>
+                  <td className="py-3 px-4">
+                    <div className="flex items-center">
+                      <div
+                        className={`rounded-full p-1.5 mr-2 text-xs ${
+                          tx.type === 'income' || tx.type === 'Income'
+                            ? 'bg-green-100 text-green-500'
+                            : 'bg-red-100 text-red-500'
+                        }`}
+                      >
+                        <i className={`fas ${tx.type === 'income' || tx.type === 'Income' ? 'fa-plus' : 'fa-minus'}`}></i>
+                      </div>
+                      <span className="text-sm">{tx.description}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 text-sm">{tx.category}</td>
+                  <td className="py-3 px-4 text-sm text-right">
+                    {tx.type === 'income' || tx.type === 'Income' ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <button className="text-blue-500 hover:text-blue-700 mx-1">
+                      <i className="fas fa-edit"></i>
+                    </button>
+                    <button className="text-red-500 hover:text-red-700 mx-1">
+                      <i className="fas fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {filteredTransactions.length > 0 && (
+        <div className="py-3 px-4 border-t border-gray-200 flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            Showing {filteredTransactions.length} of {transactions.length} transactions
+          </div>
+          <div className="flex space-x-1">
+            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+              Previous
+            </button>
+            <button className="px-3 py-1 navy-bg text-white rounded-md text-sm">
+              1
+            </button>
+            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
+              2
+            </button>
+            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
+              3
+            </button>
+            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )}
+
 </section>
 
 {showAdd && (
@@ -238,6 +301,7 @@ const Transaction = () => {
     <AddTransactionForm
       onSubmit={handleAddTransaction}
       onClose={() => setShowAdd(false)}
+      fetchTransactions={fetchTransactions}
     />
   </div>
 )}

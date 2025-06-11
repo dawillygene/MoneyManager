@@ -6,6 +6,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Column;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -24,14 +25,16 @@ public class Transaction {
     @Column(nullable = false)
     private String category;
 
-    @Column(nullable = false)
-    private Double amount;
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal amount;
 
     @Column(nullable = false)
     private String type; // "Expense" or "Income"
 
     private String notes;
 
+    @Column(nullable = false)
+    private Long userId;
 
     public Long getId() {
         return id;
@@ -65,11 +68,11 @@ public class Transaction {
         this.category = category;
     }
 
-    public Double getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
 
-    public void setAmount(Double amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 
@@ -87,5 +90,13 @@ public class Transaction {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 }

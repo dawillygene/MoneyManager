@@ -4,7 +4,6 @@ import com.example.moneymanager.models.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +16,7 @@ public class JwtService {
     @Value("${app.jwt.secret}")
     private String secretKey;
 
-    private long accessTokenValidity = 3600000; // 1 hour
+    private long accessTokenValidity = 900000; // 15 minutes (15 * 60 * 1000)
     private long refreshTokenValidity = 604800000; // 7 days
 
     private SecretKey getSigningKey() {
@@ -62,6 +61,7 @@ public class JwtService {
             throw new RuntimeException("Invalid token", e);
         }
     }
+
     public String validateRefreshToken(String refreshToken) {
         try {
             Claims claims = extractClaims(refreshToken);
@@ -71,6 +71,24 @@ public class JwtService {
         } catch (Exception e) {
             System.out.println("Error validating refresh token: " + e.getMessage());
             throw new RuntimeException("Invalid refresh token", e);
+        }
+    }
+
+    public boolean isTokenValid(String token) {
+        try {
+            Claims claims = extractClaims(token);
+            return !claims.getExpiration().before(new Date());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String extractEmailFromToken(String token) {
+        try {
+            Claims claims = extractClaims(token);
+            return claims.getSubject();
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid token", e);
         }
     }
 }

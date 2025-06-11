@@ -69,4 +69,12 @@ public class UserService {
             throw new RuntimeException("User not found");
         }
     }
+
+    public User updateUser(User user) {
+        return userRepository.save(user);
+    }
+
+    public void deleteUser(Long userId) {
+        userRepository.deleteById(userId);
+    }
 }

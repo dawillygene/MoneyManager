@@ -5,8 +5,6 @@ const CreateBudgetPage = () => {
   const [showCreate, setShowCreate] = useState(true); // Start with modal open
 
   const handleCreateBudget = (data) => {
-    // You can send data to backend or update state here
-    console.log("Budget created:", data);
     setShowCreate(false);
     // Optionally redirect or show a success message
   };

@@ -6,7 +6,6 @@ const Budgets = () => {
 
   const handleCreateBudget = (data) => {
     // Handle the new budget data here (e.g., send to backend or update state)
-    console.log("New budget:", data);
     setShowCreate(false); // Close modal after submit
   };
 

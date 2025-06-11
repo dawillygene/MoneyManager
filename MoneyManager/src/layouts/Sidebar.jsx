@@ -1,15 +1,24 @@
 import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { authService } from '../api'
+
+// Cookie utility functions
+const getCookie = (name) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+};
 
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Get user info from localStorage
+  // Get user info from cookies instead of localStorage
   let user = {};
   try {
-      const userStr = localStorage.getItem('user');
-      user = userStr && userStr !== 'undefined' ? JSON.parse(userStr) : {};
+      const userCookie = getCookie('user');
+      user = userCookie && userCookie !== 'undefined' ? JSON.parse(userCookie) : {};
   } catch {
       user = {};
   }
@@ -25,12 +34,16 @@ const Sidebar = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  // Logout handler
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    navigate('/login');
+  // Logout handler using the new authentication service
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      // authService.logout() already handles clearing tokens and redirecting
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails on server, clear local tokens and redirect
+      navigate('/login');
+    }
   };
 
   return (
@@ -55,123 +68,58 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {/* Navigation Menu */}
-        <div className="flex flex-col flex-grow px-4 py-6 space-y-2">
-          {menuItems.map((item) => (
-            <Link 
-              key={item.path}
-              to={item.path} 
-              className={`
-                sidebar-item flex items-center py-3 px-4 rounded-xl transition-all duration-200 group relative
-                ${isActive(item.path) 
-                  ? 'text-white shadow-lg' 
-                  : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10'
-                }
-              `}
-              style={isActive(item.path) ? {
-                backgroundColor: 'var(--orange)',
-                boxShadow: '0 4px 15px rgba(255, 130, 67, 0.3)'
-              } : {}}
-            >
-              {/* Active indicator */}
-              {isActive(item.path) && (
-                <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 rounded-r-full" 
-                     style={{ backgroundColor: 'var(--light-blue)' }}></div>
-              )}
-              
-              <div className={`
-                flex items-center justify-center w-10 h-10 rounded-lg mr-3 transition-all
-                ${isActive(item.path) 
-                  ? 'bg-white bg-opacity-20' 
-                  : 'group-hover:bg-white group-hover:bg-opacity-10'
-                }
-              `}>
-                <i className={`${item.icon} text-lg`}></i>
-              </div>
-              
-              <span className="font-medium text-sm">{item.label}</span>
-              
-              {/* Hover arrow */}
-              <i className={`
-                fas fa-chevron-right ml-auto text-xs transition-all opacity-0 group-hover:opacity-60
-                ${isActive(item.path) ? 'opacity-100' : ''}
-              `}></i>
-            </Link>
-          ))}
-          
-          {/* Settings - separated at bottom */}
-          <div className="flex-grow"></div>
-          <Link 
-            to="/settings" 
-            className={`
-              sidebar-item flex items-center py-3 px-4 rounded-xl transition-all duration-200 group relative
-              ${isActive('/settings') 
-                ? 'text-white shadow-lg' 
-                : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10'
-              }
-            `}
-            style={isActive('/settings') ? {
-              backgroundColor: 'var(--orange)',
-              boxShadow: '0 4px 15px rgba(255, 130, 67, 0.3)'
-            } : {}}
-          >
-            {isActive('/settings') && (
-              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 rounded-r-full" 
-                   style={{ backgroundColor: 'var(--light-blue)' }}></div>
-            )}
-            
-            <div className={`
-              flex items-center justify-center w-10 h-10 rounded-lg mr-3 transition-all
-              ${isActive('/settings') 
-                ? 'bg-white bg-opacity-20' 
-                : 'group-hover:bg-white group-hover:bg-opacity-10'
-              }
-            `}>
-              <i className="fas fa-cog text-lg"></i>
-            </div>
-            
-            <span className="font-medium text-sm">Settings</span>
-            
-            <i className={`
-              fas fa-chevron-right ml-auto text-xs transition-all opacity-0 group-hover:opacity-60
-              ${isActive('/settings') ? 'opacity-100' : ''}
-            `}></i>
-          </Link>
-        </div>
-
-        {/* User Profile Section */}
-        <div className="p-6 border-t border-opacity-20" style={{ borderColor: 'var(--light-blue)' }}>
-          <div className="flex items-center p-4 rounded-xl bg-white bg-opacity-5 backdrop-blur-sm">
-            <div className="rounded-full h-12 w-12 flex items-center justify-center font-bold text-white shadow-lg" 
+        {/* User Profile */}
+        <div className="p-6 border-b border-opacity-20" style={{ borderColor: 'var(--light-blue)' }}>
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center mr-3" 
                  style={{ backgroundColor: 'var(--light-blue)' }}>
-              <span style={{ color: 'var(--navy)' }}>
-                {displayName[0] || 'U'}
-              </span>
+              <i className="fas fa-user text-white"></i>
             </div>
-            <div className="ml-3 flex-1">
-              <div className="text-sm font-semibold text-white">{displayName}</div>
-              <div className="text-xs opacity-75" style={{ color: 'var(--light-blue)' }}>
-                {user.email || ''}
-              </div>
-            </div>
-            <div className="relative group">
-              <button className="p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all">
-                <i className="fas fa-ellipsis-v text-gray-300 group-hover:text-white"></i>
-              </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">
+                {displayName}
+              </p>
+              <p className="text-xs text-gray-300 truncate">
+                {user.email || 'User Account'}
+              </p>
             </div>
           </div>
-          
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          {menuItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+                isActive(item.path)
+                  ? 'text-white shadow-lg'
+                  : 'text-gray-300 hover:text-white hover:bg-white hover:bg-opacity-10'
+              }`}
+              style={isActive(item.path) ? { backgroundColor: 'var(--orange)' } : {}}
+            >
+              <i className={`${item.icon} mr-3 text-base`}></i>
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
+        {/* Logout */}
+        <div className="p-4 border-t border-opacity-20" style={{ borderColor: 'var(--light-blue)' }}>
           <button
-            className="flex items-center w-full mt-4 py-2 px-4 rounded-lg transition-all hover:bg-red-500 hover:bg-opacity-20 group"
-            style={{ color: 'var(--orange)' }}
             onClick={handleLogout}
+            className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-300 rounded-lg transition-all duration-200 hover:text-white hover:bg-white hover:bg-opacity-10"
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg mr-3 group-hover:bg-red-500 group-hover:bg-opacity-20 transition-all">
-              <i className="fas fa-sign-out-alt text-sm"></i>
-            </div>
-            <span className="font-medium text-sm">Logout</span>
+            <i className="fas fa-sign-out-alt mr-3 text-base"></i>
+            Logout
           </button>
         </div>
+      </div>
+
+      {/* Mobile Sidebar (simplified for now) */}
+      <div className="md:hidden">
+        {/* Mobile navigation can be implemented here if needed */}
       </div>
     </>
   )

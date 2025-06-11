@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion } from 'framer-motion';
+import { budgetService } from '../api';
 
 const categories = [
   "Housing",
@@ -22,15 +23,46 @@ function CreateBudgetForm({ onSubmit, onClose }) {
     recurring: "None",
     alertLevel: 80
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (error) setError(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(form);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Prepare data for API
+      const budgetData = {
+        name: form.category, // Use category as name
+        amount: parseFloat(form.amount),
+        category: form.category,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        description: form.description || '',
+        recurring: form.recurring,
+        alertLevel: parseInt(form.alertLevel)
+      };
+
+      const result = await budgetService.create(budgetData);
+      
+      // Call parent onSubmit with the created budget
+      onSubmit(result);
+      
+      // Close modal on success
+      onClose();
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to create budget. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle escape key to close modal and manage body scroll
@@ -256,13 +288,22 @@ function CreateBudgetForm({ onSubmit, onClose }) {
           />
         </div>
 
+        {error && (
+          <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm mb-4">
+            {error}
+          </div>
+        )}
+
         <button
           type="submit"
-          className="w-full py-2 rounded-lg orange-bg text-white font-semibold shadow hover:opacity-90 transition text-lg mt-2"
+          disabled={isLoading}
+          className={`w-full py-2 rounded-lg orange-bg text-white font-semibold shadow transition text-lg mt-2 ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+          }`}
           style={{ backgroundColor: "var(--orange)" }}
         >
-          <i className="fas fa-plus mr-2"></i>
-          Create Budget
+          <i className={`fas ${isLoading ? 'fa-spinner fa-spin' : 'fa-plus'} mr-2`}></i>
+          {isLoading ? 'Creating...' : 'Create Budget'}
         </button>
       </form>
     </motion.div>
