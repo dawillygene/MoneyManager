@@ -67,7 +67,7 @@ const Dashbord = () => {
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm text-gray-500">Monthly Expenses</p>
-          <h3 className="text-2xl font-bold navy-text mt-1">$2,184.32</h3>
+          <h3 className="text-2xl font-bold navy-text mt-1">Tsh 2,184,320</h3>
           <p className="text-xs text-red-500 flex items-center mt-2">
             <i className="fas fa-arrow-up mr-1"></i> 12.5% from last month
           </p>
@@ -84,7 +84,7 @@ const Dashbord = () => {
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm text-gray-500">Total Savings</p>
-          <h3 className="text-2xl font-bold navy-text mt-1">$28,350.00</h3>
+          <h3 className="text-2xl font-bold navy-text mt-1">Tsh 28,350,000</h3>
           <p className="text-xs text-green-500 flex items-center mt-2">
             <i className="fas fa-arrow-up mr-1"></i> 4.3% from last month
           </p>
@@ -260,7 +260,7 @@ const Dashbord = () => {
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm font-medium">Housing</span>
-          <span className="text-sm">$850 / $1000</span>
+          <span className="text-sm">Tsh 850,000 / Tsh 1,000,000</span>
         </div>
         <div className="progress-bar bg-gray-200">
           <div className="progress-fill bg-blue-500" style={{ width: '85%' }}></div>
@@ -271,7 +271,7 @@ const Dashbord = () => {
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm font-medium">Food & Dining</span>
-          <span className="text-sm">$420 / $500</span>
+          <span className="text-sm">Tsh 420,000 / Tsh 500,000</span>
         </div>
         <div className="progress-bar bg-gray-200">
           <div className="progress-fill light-blue-bg" style={{ width: '84%' }}></div>
@@ -282,7 +282,7 @@ const Dashbord = () => {
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm font-medium">Transportation</span>
-          <span className="text-sm">$120 / $300</span>
+          <span className="text-sm">Tsh 120,000 / Tsh 300,000</span>
         </div>
         <div className="progress-bar bg-gray-200">
           <div className="progress-fill navy-bg" style={{ width: '40%' }}></div>
@@ -293,13 +293,14 @@ const Dashbord = () => {
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm font-medium">Entertainment</span>
-          <span className="text-sm text-red-500">$320 / $200</span>
+          <span className="text-sm text-red-500">Tsh 320,000 / Tsh 200,000</span>
         </div>
         <div className="progress-bar bg-gray-200">
           <div className="progress-fill orange-bg" style={{ width: '100%' }}></div>
         </div>
         <div className="text-xs text-red-500 mt-1">
-          <i className="fas fa-exclamation-circle mr-1"></i> 60% over budget
+          <i className="fas fa-exclamation-circle mr-1"></i> You are over
+          this budget by Tsh 120,000
         </div>
       </div>
 
@@ -307,7 +308,7 @@ const Dashbord = () => {
       <div>
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm font-medium">Shopping</span>
-          <span className="text-sm">$180 / $300</span>
+          <span className="text-sm">Tsh 180,000 / Tsh 300,000</span>
         </div>
         <div className="progress-bar bg-gray-200">
           <div className="progress-fill bg-green-500" style={{ width: '60%' }}></div>
@@ -337,7 +338,7 @@ const Dashbord = () => {
             <p className="text-xs text-gray-500">Today, 2:34 PM</p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium text-red-500">-$84.32</p>
+            <p className="text-sm font-medium text-red-500">-Tsh 84,320</p>
             <p className="text-xs text-gray-500">Food & Dining</p>
           </div>
         </div>
@@ -354,7 +355,7 @@ const Dashbord = () => {
             <p className="text-xs text-gray-500">Jul 15, 2023</p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium text-green-500">+$2,850.00</p>
+            <p className="text-sm font-medium text-green-500">+Tsh 2,850,000</p>
             <p className="text-xs text-gray-500">Income</p>
           </div>
         </div>
@@ -373,7 +374,7 @@ const Dashbord = () => {
             <p className="text-xs text-gray-500">Jul 14, 2023</p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium text-red-500">-$52.75</p>
+            <p className="text-sm font-medium text-red-500">-Tsh 52,750</p>
             <p className="text-xs text-gray-500">Food & Dining</p>
           </div>
         </div>
@@ -390,7 +391,7 @@ const Dashbord = () => {
             <p className="text-xs text-gray-500">Jul 13, 2023</p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium text-red-500">-$128.50</p>
+            <p className="text-sm font-medium text-red-500">-Tsh 128,500</p>
             <p className="text-xs text-gray-500">Shopping</p>
           </div>
         </div>
@@ -407,7 +408,7 @@ const Dashbord = () => {
             <p className="text-xs text-gray-500">Jul 1, 2023</p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-medium text-red-500">-$850.00</p>
+            <p className="text-sm font-medium text-red-500">-Tsh 850,000</p>
             <p className="text-xs text-gray-500">Housing</p>
           </div>
         </div>

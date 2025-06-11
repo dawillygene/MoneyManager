@@ -28,7 +28,7 @@ const Budgets = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="border-r border-gray-200 pr-4">
             <h3 className="text-sm text-gray-500 mb-1">Total Budget for July</h3>
-            <p className="text-2xl font-bold navy-text">$2,500.00</p>
+            <p className="text-2xl font-bold navy-text">Tsh 2,500,000</p>
             <div className="mt-2 text-xs">
               <span className="text-blue-500">
                 <i className="fas fa-arrow-up mr-1"></i> 12% from last month
@@ -37,14 +37,14 @@ const Budgets = () => {
           </div>
           <div className="md:border-r border-gray-200 pr-4 md:px-4">
             <h3 className="text-sm text-gray-500 mb-1">Spent So Far</h3>
-            <p className="text-2xl font-bold navy-text">$1,490.00</p>
+            <p className="text-2xl font-bold navy-text">Tsh 1,490,000</p>
             <div className="mt-2 text-xs">
               <span className="text-green-500">59.6% of total budget</span>
             </div>
           </div>
           <div className="md:px-4">
             <h3 className="text-sm text-gray-500 mb-1">Remaining</h3>
-            <p className="text-2xl font-bold navy-text">$1,010.00</p>
+            <p className="text-2xl font-bold navy-text">Tsh 1,010,000</p>
             <div className="mt-2 text-xs">
               <span className="text-gray-500">18 days left in month</span>
             </div>
@@ -77,7 +77,7 @@ const Budgets = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">$850 / $1000</p>
+                  <p className="font-medium">Tsh 850,000 / Tsh 1,000,000</p>
                   <p className="text-xs text-gray-500">85% used</p>
                 </div>
               </div>
@@ -107,7 +107,7 @@ const Budgets = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">$420 / $500</p>
+                  <p className="font-medium">Tsh 420,000 / Tsh 500,000</p>
                   <p className="text-xs text-gray-500">84% used</p>
                 </div>
               </div>
@@ -137,7 +137,7 @@ const Budgets = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">$120 / $300</p>
+                  <p className="font-medium">Tsh 120,000 / Tsh 300,000</p>
                   <p className="text-xs text-gray-500">40% used</p>
                 </div>
               </div>
@@ -172,7 +172,7 @@ const Budgets = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium text-red-500">$320 / $200</p>
+                  <p className="font-medium text-red-500">Tsh 320,000 / Tsh 200,000</p>
                   <p className="text-xs text-red-500">160% used</p>
                 </div>
               </div>
@@ -181,7 +181,7 @@ const Budgets = () => {
               </div>
               <div className="bg-red-50 text-red-500 text-xs p-2 rounded mt-2">
                 <i className="fas fa-exclamation-triangle mr-1"></i> You've exceeded
-                this budget by $120.00
+                this budget by Tsh 120,000
               </div>
               <div className="flex justify-end mt-2">
                 <button className="text-xs text-blue-500 hover:underline mr-3">
@@ -204,7 +204,7 @@ const Budgets = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">$180 / $300</p>
+                  <p className="font-medium">Tsh 180,000 / Tsh 300,000</p>
                   <p className="text-xs text-gray-500">60% used</p>
                 </div>
               </div>
@@ -234,7 +234,7 @@ const Budgets = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">$50 / $200</p>
+                  <p className="font-medium">Tsh 50,000 / Tsh 200,000</p>
                   <p className="text-xs text-gray-500">25% used</p>
                 </div>
               </div>
