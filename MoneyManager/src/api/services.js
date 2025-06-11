@@ -215,8 +215,11 @@ export class TransactionService {
 
 // Goal Service
 export class GoalService {
-    async getAll() {
-        const response = await api.get(GOAL_ENDPOINTS.GET_ALL);
+    // Basic CRUD operations
+    async getAll(queryParams = {}) {
+        const response = await api.get(GOAL_ENDPOINTS.GET_ALL, {
+            params: queryParams
+        });
         return response.data;
     }
 
@@ -225,8 +228,10 @@ export class GoalService {
         return response.data;
     }
 
-    async getById(id) {
-        const response = await api.get(GOAL_ENDPOINTS.GET_BY_ID(id));
+    async getById(id, queryParams = {}) {
+        const response = await api.get(GOAL_ENDPOINTS.GET_BY_ID(id), {
+            params: queryParams
+        });
         return response.data;
     }
 
@@ -235,9 +240,152 @@ export class GoalService {
         return response.data;
     }
 
-    async delete(id) {
-        const response = await api.delete(GOAL_ENDPOINTS.DELETE(id));
+    async delete(id, queryParams = {}) {
+        const response = await api.delete(GOAL_ENDPOINTS.DELETE(id), {
+            params: queryParams
+        });
         return response.data;
+    }
+
+    // Contribution management
+    async contribute(id, contributionData) {
+        const response = await api.post(GOAL_ENDPOINTS.CONTRIBUTE(id), contributionData);
+        return response.data;
+    }
+
+    async getContributions(id, queryParams = {}) {
+        const response = await api.get(GOAL_ENDPOINTS.GET_CONTRIBUTIONS(id), {
+            params: queryParams
+        });
+        return response.data;
+    }
+
+    async updateContribution(goalId, contributionId, contributionData) {
+        const response = await api.put(GOAL_ENDPOINTS.UPDATE_CONTRIBUTION(goalId, contributionId), contributionData);
+        return response.data;
+    }
+
+    async deleteContribution(goalId, contributionId) {
+        const response = await api.delete(GOAL_ENDPOINTS.DELETE_CONTRIBUTION(goalId, contributionId));
+        return response.data;
+    }
+
+    async bulkContribute(contributionData) {
+        const response = await api.post(GOAL_ENDPOINTS.BULK_CONTRIBUTE, contributionData);
+        return response.data;
+    }
+
+    // Analytics and insights
+    async getSummary(queryParams = {}) {
+        const response = await api.get(GOAL_ENDPOINTS.SUMMARY, {
+            params: queryParams
+        });
+        return response.data;
+    }
+
+    async getAnalytics(queryParams = {}) {
+        const response = await api.get(GOAL_ENDPOINTS.ANALYTICS, {
+            params: queryParams
+        });
+        return response.data;
+    }
+
+    async getCategories() {
+        const response = await api.get(GOAL_ENDPOINTS.CATEGORIES);
+        return response.data;
+    }
+
+    // Helper methods for common filtering operations
+    async getByStatus(status, queryParams = {}) {
+        return this.getAll({ status, ...queryParams });
+    }
+
+    async getByCategory(category, queryParams = {}) {
+        return this.getAll({ category, ...queryParams });
+    }
+
+    async getByPriority(priority, queryParams = {}) {
+        return this.getAll({ priority, ...queryParams });
+    }
+
+    async searchGoals(search, queryParams = {}) {
+        return this.getAll({ search, ...queryParams });
+    }
+
+    async getActiveGoals(queryParams = {}) {
+        return this.getByStatus('active', queryParams);
+    }
+
+    async getCompletedGoals(queryParams = {}) {
+        return this.getByStatus('completed', queryParams);
+    }
+
+    async getOverdueGoals(queryParams = {}) {
+        return this.getByStatus('overdue', queryParams);
+    }
+
+    async getGoalsByDateRange(startDate, endDate, queryParams = {}) {
+        return this.getAll({ startDate, endDate, ...queryParams });
+    }
+
+    // Pagination helpers
+    async getPaginated(page = 1, limit = 10, queryParams = {}) {
+        return this.getAll({ page, limit, ...queryParams });
+    }
+
+    // Sorting helpers
+    async getSorted(sortBy = 'createdAt', sortOrder = 'desc', queryParams = {}) {
+        return this.getAll({ sortBy, sortOrder, ...queryParams });
+    }
+
+    // Convenience methods for contributions
+    async addFunds(goalId, amount, source, notes = '', date = null) {
+        const contributionData = {
+            amount,
+            source,
+            notes,
+            date: date || new Date().toISOString().split('T')[0]
+        };
+        return this.contribute(goalId, contributionData);
+    }
+
+    // Goal progress calculations (client-side helpers)
+    calculateProgress(currentAmount, targetAmount) {
+        if (!targetAmount || targetAmount <= 0) return 0;
+        return Math.min((currentAmount / targetAmount) * 100, 100);
+    }
+
+    calculateRemainingAmount(currentAmount, targetAmount) {
+        return Math.max(targetAmount - currentAmount, 0);
+    }
+
+    calculateDaysRemaining(targetDate) {
+        const today = new Date();
+        const target = new Date(targetDate);
+        const diffTime = target - today;
+        return Math.max(Math.ceil(diffTime / (1000 * 60 * 60 * 24)), 0);
+    }
+
+    calculateDailyTargetAmount(remainingAmount, daysRemaining) {
+        if (daysRemaining <= 0) return 0;
+        return remainingAmount / daysRemaining;
+    }
+
+    isGoalOverdue(targetDate, progress) {
+        const today = new Date();
+        const target = new Date(targetDate);
+        return target < today && progress < 100;
+    }
+
+    isGoalCompleted(progress) {
+        return progress >= 100;
+    }
+
+    getGoalStatus(targetDate, progress, currentAmount, targetAmount) {
+        if (this.isGoalCompleted(progress)) return 'completed';
+        if (this.isGoalOverdue(targetDate, progress)) return 'overdue';
+        if (currentAmount === 0) return 'upcoming';
+        return 'active';
     }
 }
 

@@ -92,7 +92,7 @@ public class TransactionController {
             transaction.setDescription((String) requestBody.get("description"));
             transaction.setCategory((String) requestBody.get("category"));
             
-  
+
             String type = (String) requestBody.get("type");
             if (!type.equalsIgnoreCase("income") && !type.equalsIgnoreCase("expense")) {
                 Map<String, Object> errorResponse = new HashMap<>();

@@ -83,7 +83,7 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium navy-text mb-1" htmlFor="amount" style={{ color: "var(--navy)" }}>
-            Amount to Add
+            Amount to Add (Tsh)
           </label>
           <input
             type="number"
@@ -99,7 +99,7 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
             }}
             min="0.01"
             step="0.01"
-            placeholder="100.00"
+            placeholder="100000.00"
             required
           />
         </div>

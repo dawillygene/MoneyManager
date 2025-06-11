@@ -42,11 +42,24 @@ export const TRANSACTION_ENDPOINTS = {
 };
 
 export const GOAL_ENDPOINTS = {
+    // Basic CRUD operations
     GET_ALL: '/goals',
     CREATE: '/goals',
     GET_BY_ID: (id) => `/goals/${id}`,
     UPDATE: (id) => `/goals/${id}`,
     DELETE: (id) => `/goals/${id}`,
+    
+    // Contribution management
+    CONTRIBUTE: (id) => `/goals/${id}/contribute`,
+    GET_CONTRIBUTIONS: (id) => `/goals/${id}/contributions`,
+    UPDATE_CONTRIBUTION: (id, contributionId) => `/goals/${id}/contributions/${contributionId}`,
+    DELETE_CONTRIBUTION: (id, contributionId) => `/goals/${id}/contributions/${contributionId}`,
+    BULK_CONTRIBUTE: '/goals/bulk-contribute',
+    
+    // Analytics and insights
+    SUMMARY: '/goals/summary',
+    ANALYTICS: '/goals/analytics',
+    CATEGORIES: '/goals/categories',
 };
 
 export const REPORT_ENDPOINTS = {
