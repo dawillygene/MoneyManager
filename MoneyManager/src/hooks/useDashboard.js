@@ -324,6 +324,7 @@ export const useFinancialSummary = (period = 'this-month') => {
         });
         
         setData(summaryData);
+        console.log('Financial summary data:', summaryData);
       } catch (err) {
         console.error('Financial summary error:', err);
         if (err.response?.status === 403 || err.response?.status === 401) {

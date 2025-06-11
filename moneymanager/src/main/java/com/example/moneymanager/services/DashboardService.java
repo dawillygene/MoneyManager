@@ -492,8 +492,11 @@ public class DashboardService {
 
     // Helper methods
     private BigDecimal calculateCurrentBalance(Long userId) {
-        // This would typically query account balance or calculate from all transactions
-        return BigDecimal.valueOf(2450000);
+        // Calculate balance from all transactions (income - expenses)
+        List<Transaction> allTransactions = transactionRepository.findByUserId(userId);
+        return allTransactions.stream()
+            .map(t -> "income".equals(t.getType()) ? t.getAmount() : t.getAmount().negate())
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private BigDecimal calculateCurrentBalanceFromTransactions(List<Transaction> transactions) {
@@ -503,8 +506,30 @@ public class DashboardService {
     }
 
     private double calculateBudgetUtilization(Long userId) {
-        // Would calculate actual budget utilization
-        return 75.6;
+        // Get current active budgets
+        List<Budget> activeBudgets = budgetRepository.findActiveBudgetsByUserId(userId);
+        
+        if (activeBudgets.isEmpty()) {
+            return 0.0;
+        }
+        
+        // Calculate total budgeted amount
+        BigDecimal totalBudgeted = activeBudgets.stream()
+            .map(Budget::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // Calculate total spent from budgets
+        BigDecimal totalSpent = activeBudgets.stream()
+            .map(Budget::getSpent)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // Calculate utilization percentage
+        if (totalBudgeted.compareTo(BigDecimal.ZERO) == 0) {
+            return 0.0;
+        }
+        
+        return totalSpent.divide(totalBudgeted, 4, RoundingMode.HALF_UP)
+            .multiply(BigDecimal.valueOf(100)).doubleValue();
     }
 
     private double calculateOverallGoalProgress(Long userId) {
@@ -881,11 +906,10 @@ public class DashboardService {
         double savingsRate = totalIncome.compareTo(BigDecimal.ZERO) > 0 ? 
             netIncome.divide(totalIncome, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100)).doubleValue() : 0.0;
 
-        // Get budget utilization
+
         double budgetUtilization = calculateBudgetUtilization(userId);
         BigDecimal accountBalance = calculateCurrentBalance(userId);
 
-        // Find largest expense category
         Map<String, BigDecimal> categoryExpenses = transactions.stream()
             .filter(t -> "expense".equals(t.getType()))
             .collect(Collectors.groupingBy(
@@ -896,7 +920,6 @@ public class DashboardService {
         Optional<Map.Entry<String, BigDecimal>> largestCategory = categoryExpenses.entrySet().stream()
             .max(Map.Entry.comparingByValue());
 
-        // Find largest transaction
         Optional<Transaction> largestTransaction = transactions.stream()
             .max(Comparator.comparing(Transaction::getAmount));
 

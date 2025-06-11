@@ -117,14 +117,14 @@ const Dashboard = () => {
               <div>
                 <p className="text-sm text-gray-500">Current Balance</p>
                 <h3 className="text-2xl font-bold navy-text mt-1">
-                  {financialSummary ? formatCurrency(financialSummary.currentBalance?.amount || 0) : 'Loading...'}
+                  {financialSummary ? formatCurrency(financialSummary.summary?.accountBalance || 0) : 'Loading...'}
                 </h3>
-                {financialSummary?.currentBalance?.changeFromLastPeriod && (
+                {financialSummary?.comparisons?.incomeVsLastMonth && (
                   <p className={`text-xs flex items-center mt-2 ${
-                    financialSummary.currentBalance.changeFromLastPeriod.percentage >= 0 ? 'text-green-500' : 'text-red-500'
+                    financialSummary.comparisons.incomeVsLastMonth.percentageChange >= 0 ? 'text-green-500' : 'text-red-500'
                   }`}>
-                    <i className={`fas ${financialSummary.currentBalance.changeFromLastPeriod.percentage >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1`}></i>
-                    {Math.abs(financialSummary.currentBalance.changeFromLastPeriod.percentage)}% from last period
+                    <i className={`fas ${financialSummary.comparisons.incomeVsLastMonth.percentageChange >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1`}></i>
+                    {Math.abs(financialSummary.comparisons.incomeVsLastMonth.percentageChange || 0).toFixed(1)}% from last period
                   </p>
                 )}
               </div>
@@ -138,16 +138,16 @@ const Dashboard = () => {
           <div className="bg-white rounded-lg shadow p-5 border-l-4 border-green-500 transition-all hover:shadow-md">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-gray-500">Monthly Income</p>
+                <p className="text-sm text-gray-500">Total Income</p>
                 <h3 className="text-2xl font-bold navy-text mt-1">
-                  {financialSummary ? formatCurrency(financialSummary.totalIncome?.amount || 0) : 'Loading...'}
+                  {financialSummary ? formatCurrency(financialSummary.summary?.totalIncome || 0) : 'Loading...'}
                 </h3>
-                {financialSummary?.totalIncome?.changeFromLastPeriod && (
+                {financialSummary?.comparisons?.incomeVsLastMonth && (
                   <p className={`text-xs flex items-center mt-2 ${
-                    financialSummary.totalIncome.changeFromLastPeriod.percentage >= 0 ? 'text-green-500' : 'text-red-500'
+                    financialSummary.comparisons.incomeVsLastMonth.percentageChange >= 0 ? 'text-green-500' : 'text-red-500'
                   }`}>
-                    <i className={`fas ${financialSummary.totalIncome.changeFromLastPeriod.percentage >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1`}></i>
-                    {Math.abs(financialSummary.totalIncome.changeFromLastPeriod.percentage)}% from last period
+                    <i className={`fas ${financialSummary.comparisons.incomeVsLastMonth.percentageChange >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1`}></i>
+                    {Math.abs(financialSummary.comparisons.incomeVsLastMonth.percentageChange || 0).toFixed(1)}% from last period
                   </p>
                 )}
               </div>
@@ -161,16 +161,16 @@ const Dashboard = () => {
           <div className="bg-white rounded-lg shadow p-5 border-l-4 orange-border transition-all hover:shadow-md">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-gray-500">Monthly Expenses</p>
+                <p className="text-sm text-gray-500">Total Expenses</p>
                 <h3 className="text-2xl font-bold navy-text mt-1">
-                  {financialSummary ? formatCurrency(financialSummary.totalExpenses?.amount || 0) : 'Loading...'}
+                  {financialSummary ? formatCurrency(financialSummary.summary?.totalExpenses || 0) : 'Loading...'}
                 </h3>
-                {financialSummary?.totalExpenses?.changeFromLastPeriod && (
+                {financialSummary?.comparisons?.expensesVsLastMonth && (
                   <p className={`text-xs flex items-center mt-2 ${
-                    financialSummary.totalExpenses.changeFromLastPeriod.percentage <= 0 ? 'text-green-500' : 'text-red-500'
+                    financialSummary.comparisons.expensesVsLastMonth.percentageChange <= 0 ? 'text-green-500' : 'text-red-500'
                   }`}>
-                    <i className={`fas ${financialSummary.totalExpenses.changeFromLastPeriod.percentage <= 0 ? 'fa-arrow-down' : 'fa-arrow-up'} mr-1`}></i>
-                    {Math.abs(financialSummary.totalExpenses.changeFromLastPeriod.percentage)}% from last period
+                    <i className={`fas ${financialSummary.comparisons.expensesVsLastMonth.percentageChange <= 0 ? 'fa-arrow-down' : 'fa-arrow-up'} mr-1`}></i>
+                    {Math.abs(financialSummary.comparisons.expensesVsLastMonth.percentageChange || 0).toFixed(1)}% from last period
                   </p>
                 )}
               </div>
@@ -180,29 +180,113 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Total Savings Card */}
+          {/* Net Income Card */}
           <div className="bg-white rounded-lg shadow p-5 border-l-4 border-purple-500 transition-all hover:shadow-md">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-sm text-gray-500">Total Savings</p>
+                <p className="text-sm text-gray-500">Net Income</p>
                 <h3 className="text-2xl font-bold navy-text mt-1">
-                  {financialSummary ? formatCurrency(financialSummary.totalSavings?.amount || 0) : 'Loading...'}
+                  {financialSummary ? formatCurrency(financialSummary.summary?.netIncome || 0) : 'Loading...'}
                 </h3>
-                {financialSummary?.totalSavings?.changeFromLastPeriod && (
-                  <p className={`text-xs flex items-center mt-2 ${
-                    financialSummary.totalSavings.changeFromLastPeriod.percentage >= 0 ? 'text-green-500' : 'text-red-500'
-                  }`}>
-                    <i className={`fas ${financialSummary.totalSavings.changeFromLastPeriod.percentage >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1`}></i>
-                    {Math.abs(financialSummary.totalSavings.changeFromLastPeriod.percentage)}% from last period
+                {financialSummary?.summary?.savingsRate && (
+                  <p className="text-xs flex items-center mt-2 text-purple-600">
+                    <i className="fas fa-chart-line mr-1"></i>
+                    {financialSummary.summary.savingsRate.toFixed(1)}% savings rate
                   </p>
                 )}
               </div>
               <div className="rounded-full p-2 bg-purple-100 text-purple-500">
-                <i className="fas fa-piggy-bank text-lg"></i>
+                <i className="fas fa-chart-line text-lg"></i>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Quick Stats Section */}
+        {financialSummary?.quickStats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {/* Largest Expense Category */}
+            {financialSummary.quickStats.largestExpenseCategory && (
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-400">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Largest Expense Category</p>
+                    <h4 className="text-lg font-semibold navy-text">
+                      {financialSummary.quickStats.largestExpenseCategory.category}
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {formatCurrency(financialSummary.quickStats.largestExpenseCategory.amount)} 
+                      ({financialSummary.quickStats.largestExpenseCategory.percentage?.toFixed(1) || 0}%)
+                    </p>
+                  </div>
+                  <div className="rounded-full p-2 bg-red-100 text-red-500">
+                    <i className="fas fa-exclamation-triangle text-lg"></i>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Largest Transaction */}
+            {financialSummary.quickStats.largestTransaction && (
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-400">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-500">Largest Transaction</p>
+                    <h4 className="text-lg font-semibold navy-text">
+                      {financialSummary.quickStats.largestTransaction.description}
+                    </h4>
+                    <p className="text-sm text-gray-600">
+                      {formatCurrency(financialSummary.quickStats.largestTransaction.amount)} 
+                      ({financialSummary.quickStats.largestTransaction.type})
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {getRelativeTime(financialSummary.quickStats.largestTransaction.date)}
+                    </p>
+                  </div>
+                  <div className={`rounded-full p-2 ${
+                    financialSummary.quickStats.largestTransaction.type === 'income' 
+                      ? 'bg-green-100 text-green-500' 
+                      : 'bg-blue-100 text-blue-500'
+                  }`}>
+                    <i className={`fas ${
+                      financialSummary.quickStats.largestTransaction.type === 'income' 
+                        ? 'fa-arrow-down' 
+                        : 'fa-arrow-up'
+                    } text-lg`}></i>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Budget Utilization */}
+        {financialSummary?.summary?.budgetUtilization !== undefined && (
+          <div className="bg-white rounded-lg shadow p-4 mb-8">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-lg font-semibold navy-text">Overall Budget Utilization</h3>
+              <span className="text-sm font-medium">
+                {financialSummary.summary.budgetUtilization.toFixed(1)}%
+              </span>
+            </div>
+            <div className="progress-bar bg-gray-200">
+              <div 
+                className={`progress-fill ${
+                  financialSummary.summary.budgetUtilization > 100 ? 'bg-red-500' : 
+                  financialSummary.summary.budgetUtilization > 80 ? 'orange-bg' : 
+                  'bg-blue-500'
+                }`} 
+                style={{ width: `${Math.min(financialSummary.summary.budgetUtilization, 100)}%` }}
+              ></div>
+            </div>
+            {financialSummary.summary.budgetUtilization > 100 && (
+              <div className="text-xs text-red-500 mt-2">
+                <i className="fas fa-exclamation-circle mr-1"></i>
+                You are over budget this {financialSummary.period || 'period'}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Expenses by Category */}
