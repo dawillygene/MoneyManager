@@ -6,7 +6,8 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
   const [form, setForm] = useState({
     amount: "",
     date: new Date().toISOString().slice(0, 10),
-    note: ""
+    source: "",
+    notes: ""
   });
 
   const handleChange = (e) => {
@@ -19,7 +20,6 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
     onSubmit(form);
   };
 
-  // Handle escape key to close modal and manage body scroll
   useEffect(() => {
     function handleEscapeKey(event) {
       if (event.key === 'Escape') {
@@ -27,11 +27,9 @@ function AddFundsForm({ goalName, onSubmit, onClose }) {
       }
     }
     
-    // Prevent body scroll when modal is open
     document.body.classList.add('modal-open');
     document.addEventListener('keydown', handleEscapeKey);
     
-    // Focus the modal when it opens
     if (modalRef.current) {
       modalRef.current.focus();
     }

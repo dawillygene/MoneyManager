@@ -3,8 +3,11 @@ import { BUDGET_ENDPOINTS, TRANSACTION_ENDPOINTS, GOAL_ENDPOINTS, REPORT_ENDPOIN
 
 // Budget Service
 export class BudgetService {
-    async getAll() {
-        const response = await api.get(BUDGET_ENDPOINTS.GET_ALL);
+    // Basic CRUD operations
+    async getAll(queryParams = {}) {
+        const response = await api.get(BUDGET_ENDPOINTS.GET_ALL, {
+            params: queryParams
+        });
         return response.data;
     }
 
@@ -13,8 +16,10 @@ export class BudgetService {
         return response.data;
     }
 
-    async getById(id) {
-        const response = await api.get(BUDGET_ENDPOINTS.GET_BY_ID(id));
+    async getById(id, queryParams = {}) {
+        const response = await api.get(BUDGET_ENDPOINTS.GET_BY_ID(id), {
+            params: queryParams
+        });
         return response.data;
     }
 
@@ -23,9 +28,97 @@ export class BudgetService {
         return response.data;
     }
 
-    async delete(id) {
-        const response = await api.delete(BUDGET_ENDPOINTS.DELETE(id));
+    async delete(id, queryParams = {}) {
+        const response = await api.delete(BUDGET_ENDPOINTS.DELETE(id), {
+            params: queryParams
+        });
         return response.data;
+    }
+
+    // Advanced budget operations
+    async getSummary(queryParams = {}) {
+        const response = await api.get(BUDGET_ENDPOINTS.SUMMARY, {
+            params: queryParams
+        });
+        return response.data;
+    }
+
+    async getCategories() {
+        const response = await api.get(BUDGET_ENDPOINTS.CATEGORIES);
+        return response.data;
+    }
+
+    async getAlerts(queryParams = {}) {
+        const response = await api.get(BUDGET_ENDPOINTS.ALERTS, {
+            params: queryParams
+        });
+        return response.data;
+    }
+
+    async duplicate(id, duplicateData) {
+        const response = await api.post(BUDGET_ENDPOINTS.DUPLICATE(id), duplicateData);
+        return response.data;
+    }
+
+    async batchCreate(budgetsData) {
+        const response = await api.post(BUDGET_ENDPOINTS.BATCH_CREATE, budgetsData);
+        return response.data;
+    }
+
+    async generateRecurring(queryParams = {}) {
+        const response = await api.get(BUDGET_ENDPOINTS.RECURRING_GENERATE, {
+            params: queryParams
+        });
+        return response.data;
+    }
+
+    async archive(id) {
+        const response = await api.put(BUDGET_ENDPOINTS.ARCHIVE(id));
+        return response.data;
+    }
+
+    async restore(id) {
+        const response = await api.put(BUDGET_ENDPOINTS.RESTORE(id));
+        return response.data;
+    }
+
+    // Helper methods for common filtering operations
+    async getByStatus(status, queryParams = {}) {
+        return this.getAll({ status, ...queryParams });
+    }
+
+    async getByCategory(category, queryParams = {}) {
+        return this.getAll({ category, ...queryParams });
+    }
+
+    async searchBudgets(search, queryParams = {}) {
+        return this.getAll({ search, ...queryParams });
+    }
+
+    async getRecurringBudgets(recurring = 'monthly', queryParams = {}) {
+        return this.getAll({ recurring, ...queryParams });
+    }
+
+    async getActiveBudgets(queryParams = {}) {
+        return this.getByStatus('active', queryParams);
+    }
+
+    async getOverBudgets(queryParams = {}) {
+        return this.getAll({ ...queryParams, overBudget: true });
+    }
+
+    async getBudgetsByDateRange(startDate, endDate, queryParams = {}) {
+        return this.getAll({ startDate, endDate, ...queryParams });
+    }
+
+    // Pagination helpers
+    async getPaginated(page = 1, limit = 10, queryParams = {}) {
+        return this.getAll({ page, limit, ...queryParams });
+    }
+
+    // Sorting helpers
+    async getSorted(sortBy = 'createdAt', sortOrder = 'desc', queryParams = {}) {
+        return this.getAll({ sortBy, sortOrder, ...queryParams });
     }
 }
 

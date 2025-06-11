@@ -42,22 +42,20 @@ public class TransactionController {
         try {
             Long userId = getUserIdFromToken(authorizationHeader);
             List<Transaction> transactions;
-            
-            // Handle different filtering scenarios
+
             if (year != null && month != null) {
-                // Filter by specific month and year
+
                 transactions = transactionService.getTransactionsByMonthAndYear(userId, year, month);
             } else if (type != null || category != null || startDate != null || endDate != null) {
-                // Use flexible filtering
+
                 LocalDate start = startDate != null ? LocalDate.parse(startDate) : null;
                 LocalDate end = endDate != null ? LocalDate.parse(endDate) : null;
-                transactions = transactionService.getFilteredTransactions(userId, type, category, start, end);
+                transactions = transactionService.getFilteredTransactions(userId, type, category, start, end, year, month, limit);
             } else {
-                // Get all transactions
+
                 transactions = transactionService.getTransactionsByUserId(userId);
             }
-            
-            // Apply limit if specified
+
             if (limit != null && limit > 0) {
                 transactions = transactions.stream().limit(limit).toList();
             }
@@ -94,7 +92,7 @@ public class TransactionController {
             transaction.setDescription((String) requestBody.get("description"));
             transaction.setCategory((String) requestBody.get("category"));
             
-            // Validate transaction type
+  
             String type = (String) requestBody.get("type");
             if (!type.equalsIgnoreCase("income") && !type.equalsIgnoreCase("expense")) {
                 Map<String, Object> errorResponse = new HashMap<>();

@@ -1030,3 +1030,1167 @@ src/
 5. **Automatic cleanup**: Logout clears all authentication data
 
 All components now use cookies exclusively for authentication and user data storage, providing enhanced security compared to localStorage-based approaches.
+
+# Goals API Documentation
+
+## Overview
+This document outlines the API structure and requirements for the Goals feature in the Money Manager application. The Goals API allows users to set and track financial goals, providing insights and analytics on their savings progress.
+
+## Base Configuration
+- **Base URL**: `http://localhost:8080/api/goals`
+- **Authentication**: JWT Bearer tokens
+- **Token Storage**: **HttpOnly cookies ONLY** (no localStorage)
+- **Cookies**: HttpOnly cookies with automatic management
+- **CORS**: `withCredentials: true` required for cookie handling
+
+## Goals API Endpoints
+
+### Goal Endpoints
+
+Goals represent financial savings targets that users want to achieve. Users can create goals, track progress, and add funds to reach their targets.
+
+#### GET /goals
+Get all goals for the authenticated user with optional filtering and sorting.
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 10, max: 100)
+- `sortBy`: Sort field (name, targetAmount, targetDate, progress, createdAt)
+- `sortOrder`: Sort direction (asc, desc)
+- `status`: Filter by status (active, completed, overdue, upcoming)
+- `search`: Search in goal names and descriptions
+- `category`: Filter by goal category/type
+
+**Example Request:**
+```
+GET /goals?page=1&limit=20&sortBy=targetDate&sortOrder=asc&status=active
+```
+
+**Response:**
+```json
+{
+  "goals": [
+    {
+      "id": 1,
+      "name": "Summer Vacation",
+      "description": "Trip to Europe with family",
+      "targetAmount": 2500.00,
+      "currentAmount": 1800.00,
+      "targetDate": "2025-07-15",
+      "icon": "fa-plane-departure",
+      "status": "active",
+      "progress": 72.0,
+      "remainingAmount": 700.00,
+      "daysRemaining": 34,
+      "dailyTargetAmount": 20.59,
+      "weeklyTargetAmount": 144.12,
+      "monthlyTargetAmount": 617.65,
+      "isOverdue": false,
+      "isCompleted": false,
+      "projectedCompletionDate": "2025-07-05",
+      "onTrack": true,
+      "priority": "high",
+      "category": "travel",
+      "tags": ["vacation", "family", "europe"],
+      "createdAt": "2025-01-15T10:30:00Z",
+      "updatedAt": "2025-06-10T14:20:00Z",
+      "contributions": [
+        {
+          "id": 101,
+          "amount": 500.00,
+          "source": "salary",
+          "notes": "Monthly savings",
+          "date": "2025-06-01T00:00:00Z",
+          "createdAt": "2025-06-01T08:30:00Z"
+        },
+        {
+          "id": 102,
+          "amount": 200.00,
+          "source": "bonus",
+          "notes": "Work bonus",
+          "date": "2025-06-05T00:00:00Z",
+          "createdAt": "2025-06-05T10:15:00Z"
+        }
+      ],
+      "milestones": [
+        {
+          "percentage": 25,
+          "amount": 625.00,
+          "reachedAt": "2025-02-15T00:00:00Z",
+          "description": "First quarter milestone"
+        },
+        {
+          "percentage": 50,
+          "amount": 1250.00,
+          "reachedAt": "2025-04-10T00:00:00Z",
+          "description": "Halfway point"
+        },
+        {
+          "percentage": 75,
+          "amount": 1875.00,
+          "reachedAt": null,
+          "description": "Three quarters milestone"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Emergency Fund",
+      "description": "6 months of expenses for security",
+      "targetAmount": 12000.00,
+      "currentAmount": 8500.00,
+      "targetDate": "2025-12-31",
+      "icon": "fa-shield-alt",
+      "status": "active",
+      "progress": 70.83,
+      "remainingAmount": 3500.00,
+      "daysRemaining": 203,
+      "dailyTargetAmount": 17.24,
+      "weeklyTargetAmount": 120.69,
+      "monthlyTargetAmount": 517.24,
+      "isOverdue": false,
+      "isCompleted": false,
+      "projectedCompletionDate": "2025-11-15",
+      "onTrack": true,
+      "priority": "high",
+      "category": "emergency",
+      "tags": ["emergency", "security", "savings"],
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-06-08T09:45:00Z",
+      "contributions": [],
+      "milestones": [
+        {
+          "percentage": 25,
+          "amount": 3000.00,
+          "reachedAt": "2025-02-28T00:00:00Z",
+          "description": "First quarter saved"
+        },
+        {
+          "percentage": 50,
+          "amount": 6000.00,
+          "reachedAt": "2025-04-30T00:00:00Z",
+          "description": "Halfway to security"
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 2,
+    "totalItems": 8,
+    "itemsPerPage": 10,
+    "hasNextPage": true,
+    "hasPrevPage": false
+  },
+  "summary": {
+    "totalGoals": 8,
+    "activeGoals": 6,
+    "completedGoals": 1,
+    "overdueGoals": 1,
+    "totalTargetAmount": 45000.00,
+    "totalCurrentAmount": 28500.00,
+    "totalRemainingAmount": 16500.00,
+    "overallProgress": 63.33,
+    "averageProgress": 58.75,
+    "goalsOnTrack": 5,
+    "goalsOffTrack": 1,
+    "upcomingMilestones": 3
+  }
+}
+```
+
+#### POST /goals
+Create a new financial goal.
+
+**Request Body:**
+```json
+{
+  "name": "New Car",
+  "description": "Save for a reliable family car",
+  "targetAmount": 15000.00,
+  "currentAmount": 2000.00,
+  "targetDate": "2026-03-15",
+  "icon": "fa-car",
+  "priority": "medium",
+  "category": "transportation",
+  "tags": ["car", "family", "transportation"],
+  "milestones": [
+    {
+      "percentage": 25,
+      "description": "Down payment ready"
+    },
+    {
+      "percentage": 50,
+      "description": "Halfway there"
+    },
+    {
+      "percentage": 75,
+      "description": "Almost ready to buy"
+    }
+  ]
+}
+```
+
+**Validation Rules:**
+- `name`: Required, 3-100 characters, unique per user
+- `targetAmount`: Required, positive number, min 1.00, max 999,999,999.99
+- `currentAmount`: Optional, positive number, max targetAmount (default: 0)
+- `targetDate`: Required, must be future date
+- `icon`: Optional, valid FontAwesome icon class (default: "fa-bullseye")
+- `priority`: Optional, one of: low, medium, high (default: "medium")
+- `category`: Optional, predefined category from available list
+
+**Response:**
+```json
+{
+  "id": 9,
+  "name": "New Car",
+  "description": "Save for a reliable family car",
+  "targetAmount": 15000.00,
+  "currentAmount": 2000.00,
+  "targetDate": "2026-03-15",
+  "icon": "fa-car",
+  "status": "active",
+  "progress": 13.33,
+  "remainingAmount": 13000.00,
+  "daysRemaining": 277,
+  "dailyTargetAmount": 46.93,
+  "weeklyTargetAmount": 328.51,
+  "monthlyTargetAmount": 1408.05,
+  "isOverdue": false,
+  "isCompleted": false,
+  "projectedCompletionDate": "2026-03-10",
+  "onTrack": true,
+  "priority": "medium",
+  "category": "transportation",
+  "tags": ["car", "family", "transportation"],
+  "createdAt": "2025-06-11T18:30:00Z",
+  "updatedAt": "2025-06-11T18:30:00Z",
+  "contributions": [],
+  "milestones": [
+    {
+      "percentage": 25,
+      "amount": 3750.00,
+      "reachedAt": null,
+      "description": "Down payment ready"
+    },
+    {
+      "percentage": 50,
+      "amount": 7500.00,
+      "reachedAt": null,
+      "description": "Halfway there"
+    },
+    {
+      "percentage": 75,
+      "amount": 11250.00,
+      "reachedAt": null,
+      "description": "Almost ready to buy"
+    }
+  ]
+}
+```
+
+#### GET /goals/{id}
+Get a specific goal by ID with detailed information, contribution history, and analytics.
+
+**Path Parameters:**
+- `id`: Goal ID (integer)
+
+**Query Parameters:**
+- `includeContributions`: Include contribution history (default: true)
+- `contributionLimit`: Limit number of contributions returned (default: 20)
+- `includeAnalytics`: Include progress analytics (default: true)
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "Summer Vacation",
+  "description": "Trip to Europe with family",
+  "targetAmount": 2500.00,
+  "currentAmount": 1800.00,
+  "targetDate": "2025-07-15",
+  "icon": "fa-plane-departure",
+  "status": "active",
+  "progress": 72.0,
+  "remainingAmount": 700.00,
+  "daysRemaining": 34,
+  "dailyTargetAmount": 20.59,
+  "weeklyTargetAmount": 144.12,
+  "monthlyTargetAmount": 617.65,
+  "isOverdue": false,
+  "isCompleted": false,
+  "projectedCompletionDate": "2025-07-05",
+  "onTrack": true,
+  "priority": "high",
+  "category": "travel",
+  "tags": ["vacation", "family", "europe"],
+  "createdAt": "2025-01-15T10:30:00Z",
+  "updatedAt": "2025-06-10T14:20:00Z",
+  "contributions": [
+    {
+      "id": 101,
+      "amount": 500.00,
+      "source": "salary",
+      "notes": "Monthly savings",
+      "date": "2025-06-01T00:00:00Z",
+      "createdAt": "2025-06-01T08:30:00Z"
+    },
+    {
+      "id": 102,
+      "amount": 200.00,
+      "source": "bonus",
+      "notes": "Work bonus",
+      "date": "2025-06-05T00:00:00Z",
+      "createdAt": "2025-06-05T10:15:00Z"
+    },
+    {
+      "id": 103,
+      "amount": 150.00,
+      "source": "savings",
+      "notes": "Extra from budget savings",
+      "date": "2025-05-15T00:00:00Z",
+      "createdAt": "2025-05-15T14:22:00Z"
+    }
+  ],
+  "milestones": [
+    {
+      "percentage": 25,
+      "amount": 625.00,
+      "reachedAt": "2025-02-15T00:00:00Z",
+      "description": "First quarter milestone"
+    },
+    {
+      "percentage": 50,
+      "amount": 1250.00,
+      "reachedAt": "2025-04-10T00:00:00Z",
+      "description": "Halfway point"
+    },
+    {
+      "percentage": 75,
+      "amount": 1875.00,
+      "reachedAt": null,
+      "description": "Three quarters milestone"
+    }
+  ],
+  "analytics": {
+    "monthlyContributions": [
+      { "month": "2025-01", "amount": 300.00, "contributions": 2 },
+      { "month": "2025-02", "amount": 400.00, "contributions": 3 },
+      { "month": "2025-03", "amount": 350.00, "contributions": 2 },
+      { "month": "2025-04", "amount": 450.00, "contributions": 4 },
+      { "month": "2025-05", "amount": 300.00, "contributions": 2 }
+    ],
+    "averageMonthlyContribution": 360.00,
+    "largestContribution": 500.00,
+    "smallestContribution": 50.00,
+    "totalContributions": 15,
+    "contributionFrequency": "weekly",
+    "velocityTrend": "increasing",
+    "estimatedCompletionDate": "2025-07-05",
+    "recommendedMonthlyAmount": 617.65,
+    "savingsRate": 14.4,
+    "timeToCompletion": {
+      "current_pace": "34 days",
+      "target_pace": "34 days",
+      "behind_by": "0 days",
+      "status": "on_track"
+    }
+  }
+}
+```
+
+#### PUT /goals/{id}
+Update a specific goal's information.
+
+**Path Parameters:**
+- `id`: Goal ID (integer)
+
+**Request Body:**
+```json
+{
+  "name": "European Summer Adventure",
+  "description": "Extended trip to Europe with family - updated plan",
+  "targetAmount": 3000.00,
+  "targetDate": "2025-08-01",
+  "icon": "fa-plane-departure",
+  "priority": "high",
+  "category": "travel",
+  "tags": ["vacation", "family", "europe", "extended"],
+  "milestones": [
+    {
+      "percentage": 25,
+      "description": "Flight tickets booked"
+    },
+    {
+      "percentage": 50,
+      "description": "Accommodation secured"
+    },
+    {
+      "percentage": 75,
+      "description": "Activities and tours booked"
+    },
+    {
+      "percentage": 90,
+      "description": "Almost ready for trip"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "name": "European Summer Adventure",
+  "description": "Extended trip to Europe with family - updated plan",
+  "targetAmount": 3000.00,
+  "currentAmount": 1800.00,
+  "targetDate": "2025-08-01",
+  "icon": "fa-plane-departure",
+  "status": "active",
+  "progress": 60.0,
+  "remainingAmount": 1200.00,
+  "daysRemaining": 51,
+  "dailyTargetAmount": 23.53,
+  "weeklyTargetAmount": 164.71,
+  "monthlyTargetAmount": 705.88,
+  "isOverdue": false,
+  "isCompleted": false,
+  "projectedCompletionDate": "2025-07-22",
+  "onTrack": true,
+  "priority": "high",
+  "category": "travel",
+  "tags": ["vacation", "family", "europe", "extended"],
+  "createdAt": "2025-01-15T10:30:00Z",
+  "updatedAt": "2025-06-11T19:15:00Z",
+  "milestones": [
+    {
+      "percentage": 25,
+      "amount": 750.00,
+      "reachedAt": "2025-02-15T00:00:00Z",
+      "description": "Flight tickets booked"
+    },
+    {
+      "percentage": 50,
+      "amount": 1500.00,
+      "reachedAt": "2025-04-10T00:00:00Z",
+      "description": "Accommodation secured"
+    },
+    {
+      "percentage": 60,
+      "amount": 1800.00,
+      "reachedAt": "2025-06-10T00:00:00Z",
+      "description": "Current progress"
+    },
+    {
+      "percentage": 75,
+      "amount": 2250.00,
+      "reachedAt": null,
+      "description": "Activities and tours booked"
+    },
+    {
+      "percentage": 90,
+      "amount": 2700.00,
+      "reachedAt": null,
+      "description": "Almost ready for trip"
+    }
+  ]
+}
+```
+
+#### DELETE /goals/{id}
+Delete a specific goal. This will also remove all associated contributions.
+
+**Path Parameters:**
+- `id`: Goal ID (integer)
+
+**Query Parameters:**
+- `keepContributions`: Whether to keep contribution records for reporting (default: false)
+
+**Response:**
+```json
+{
+  "message": "Goal deleted successfully",
+  "deletedGoalId": 1,
+  "deletedContributions": 15,
+  "totalAmountReleased": 1800.00,
+  "deletedAt": "2025-06-11T19:30:00Z"
+}
+```
+
+#### POST /goals/{id}/contribute
+Add funds to a specific goal.
+
+**Path Parameters:**
+- `id`: Goal ID (integer)
+
+**Request Body:**
+```json
+{
+  "amount": 250.00,
+  "source": "salary",
+  "notes": "Bi-weekly contribution",
+  "date": "2025-06-11"
+}
+```
+
+**Validation Rules:**
+- `amount`: Required, positive number, min 0.01, max 999,999.99
+- `source`: Required, one of: salary, savings, bonus, gift, other
+- `notes`: Optional, max 500 characters
+- `date`: Optional, defaults to current date, cannot be future date
+
+**Response:**
+```json
+{
+  "contribution": {
+    "id": 104,
+    "goalId": 1,
+    "amount": 250.00,
+    "source": "salary",
+    "notes": "Bi-weekly contribution",
+    "date": "2025-06-11T00:00:00Z",
+    "createdAt": "2025-06-11T19:45:00Z"
+  },
+  "goal": {
+    "id": 1,
+    "name": "European Summer Adventure",
+    "currentAmount": 2050.00,
+    "targetAmount": 3000.00,
+    "progress": 68.33,
+    "remainingAmount": 950.00,
+    "status": "active",
+    "milestonesReached": [
+      {
+        "percentage": 25,
+        "amount": 750.00,
+        "reachedAt": "2025-02-15T00:00:00Z"
+      },
+      {
+        "percentage": 50,
+        "amount": 1500.00,
+        "reachedAt": "2025-04-10T00:00:00Z"
+      }
+    ],
+    "newMilestonesReached": [],
+    "projectedCompletionDate": "2025-07-15",
+    "daysRemaining": 34
+  }
+}
+```
+
+#### GET /goals/{id}/contributions
+Get contribution history for a specific goal with filtering and pagination.
+
+**Path Parameters:**
+- `id`: Goal ID (integer)
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 20, max: 100)
+- `sortBy`: Sort field (amount, date, createdAt)
+- `sortOrder`: Sort direction (asc, desc)
+- `source`: Filter by contribution source
+- `startDate`: Filter contributions from this date
+- `endDate`: Filter contributions to this date
+- `minAmount`: Filter contributions with minimum amount
+- `maxAmount`: Filter contributions with maximum amount
+
+**Example Request:**
+```
+GET /goals/1/contributions?page=1&limit=10&sortBy=date&sortOrder=desc&source=salary
+```
+
+**Response:**
+```json
+{
+  "contributions": [
+    {
+      "id": 104,
+      "amount": 250.00,
+      "source": "salary",
+      "notes": "Bi-weekly contribution",
+      "date": "2025-06-11T00:00:00Z",
+      "createdAt": "2025-06-11T19:45:00Z"
+    },
+    {
+      "id": 102,
+      "amount": 200.00,
+      "source": "bonus",
+      "notes": "Work bonus",
+      "date": "2025-06-05T00:00:00Z",
+      "createdAt": "2025-06-05T10:15:00Z"
+    },
+    {
+      "id": 101,
+      "amount": 500.00,
+      "source": "salary",
+      "notes": "Monthly savings",
+      "date": "2025-06-01T00:00:00Z",
+      "createdAt": "2025-06-01T08:30:00Z"
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 2,
+    "totalItems": 15,
+    "itemsPerPage": 10,
+    "hasNextPage": true,
+    "hasPrevPage": false
+  },
+  "summary": {
+    "totalContributions": 15,
+    "totalAmount": 1800.00,
+    "averageContribution": 120.00,
+    "largestContribution": 500.00,
+    "smallestContribution": 50.00,
+    "contributionsBySource": {
+      "salary": { "count": 8, "amount": 1200.00 },
+      "bonus": { "count": 3, "amount": 400.00 },
+      "savings": { "count": 2, "amount": 150.00 },
+      "gift": { "count": 1, "amount": 50.00 },
+      "other": { "count": 1, "amount": 0.00 }
+    },
+    "monthlyBreakdown": [
+      { "month": "2025-06", "amount": 950.00, "contributions": 3 },
+      { "month": "2025-05", "amount": 300.00, "contributions": 2 },
+      { "month": "2025-04", "amount": 450.00, "contributions": 4 }
+    ]
+  }
+}
+```
+
+#### PUT /goals/{id}/contributions/{contributionId}
+Update a specific contribution (only notes and source can be modified).
+
+**Path Parameters:**
+- `id`: Goal ID (integer)
+- `contributionId`: Contribution ID (integer)
+
+**Request Body:**
+```json
+{
+  "source": "bonus",
+  "notes": "Updated: Work performance bonus"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 102,
+  "goalId": 1,
+  "amount": 200.00,
+  "source": "bonus",
+  "notes": "Updated: Work performance bonus",
+  "date": "2025-06-05T00:00:00Z",
+  "createdAt": "2025-06-05T10:15:00Z",
+  "updatedAt": "2025-06-11T20:00:00Z"
+}
+```
+
+#### DELETE /goals/{id}/contributions/{contributionId}
+Remove a contribution from a goal (reduces the goal's current amount).
+
+**Path Parameters:**
+- `id`: Goal ID (integer)
+- `contributionId`: Contribution ID (integer)
+
+**Response:**
+```json
+{
+  "message": "Contribution removed successfully",
+  "removedContribution": {
+    "id": 102,
+    "amount": 200.00,
+    "source": "bonus",
+    "date": "2025-06-05T00:00:00Z"
+  },
+  "goal": {
+    "id": 1,
+    "name": "European Summer Adventure",
+    "currentAmount": 1850.00,
+    "targetAmount": 3000.00,
+    "progress": 61.67,
+    "remainingAmount": 1150.00,
+    "updatedAt": "2025-06-11T20:05:00Z"
+  }
+}
+```
+
+#### GET /goals/summary
+Get comprehensive goal statistics and overview for the authenticated user.
+
+**Query Parameters:**
+- `period`: Time period (all, current_year, current_month, custom)
+- `startDate`: Start date for custom period
+- `endDate`: End date for custom period
+- `includeCompleted`: Include completed goals in statistics (default: true)
+
+**Response:**
+```json
+{
+  "period": "current_year",
+  "dateRange": {
+    "startDate": "2025-01-01",
+    "endDate": "2025-12-31"
+  },
+  "overview": {
+    "totalGoals": 8,
+    "activeGoals": 6,
+    "completedGoals": 1,
+    "overdueGoals": 1,
+    "upcomingGoals": 0
+  },
+  "financial": {
+    "totalTargetAmount": 45000.00,
+    "totalCurrentAmount": 28500.00,
+    "totalRemainingAmount": 16500.00,
+    "totalCompletedAmount": 5000.00,
+    "overallProgress": 63.33,
+    "averageProgress": 58.75,
+    "totalContributionsThisYear": 15500.00,
+    "averageMonthlyContribution": 1291.67
+  },
+  "progress": {
+    "goalsOnTrack": 5,
+    "goalsOffTrack": 1,
+    "goalsBehindSchedule": 2,
+    "goalsAheadOfSchedule": 1,
+    "completionRate": 12.5,
+    "averageTimeToCompletion": "8.5 months"
+  },
+  "milestones": {
+    "totalMilestones": 24,
+    "milestonesReached": 12,
+    "upcomingMilestones": 8,
+    "milestoneCompletionRate": 50.0
+  },
+  "categories": [
+    {
+      "category": "travel",
+      "goalsCount": 2,
+      "totalTarget": 8500.00,
+      "totalCurrent": 4300.00,
+      "progress": 50.59
+    },
+    {
+      "category": "emergency",
+      "goalsCount": 1,
+      "totalTarget": 12000.00,
+      "totalCurrent": 8500.00,
+      "progress": 70.83
+    },
+    {
+      "category": "transportation",
+      "goalsCount": 2,
+      "totalTarget": 18000.00,
+      "totalCurrent": 8200.00,
+      "progress": 45.56
+    },
+    {
+      "category": "education",
+      "goalsCount": 1,
+      "totalTarget": 5000.00,
+      "totalCurrent": 5000.00,
+      "progress": 100.0
+    },
+    {
+      "category": "home",
+      "goalsCount": 2,
+      "totalTarget": 1500.00,
+      "totalCurrent": 2500.00,
+      "progress": 100.0
+    }
+  ],
+  "contributions": {
+    "thisMonth": {
+      "amount": 1450.00,
+      "count": 8,
+      "averageAmount": 181.25
+    },
+    "lastMonth": {
+      "amount": 1200.00,
+      "count": 6,
+      "averageAmount": 200.00
+    },
+    "monthlyTrend": "increasing",
+    "topSources": [
+      { "source": "salary", "amount": 8500.00, "percentage": 54.84 },
+      { "source": "bonus", "amount": 3200.00, "percentage": 20.65 },
+      { "source": "savings", "amount": 2800.00, "percentage": 18.06 },
+      { "source": "gift", "amount": 1000.00, "percentage": 6.45 }
+    ]
+  },
+  "projections": {
+    "estimatedYearEndAmount": 42000.00,
+    "projectedGoalsCompleted": 3,
+    "recommendedMonthlyContribution": 1375.00,
+    "timeToCompleteAllGoals": "14 months",
+    "mostLikelyNextCompletion": {
+      "goalId": 1,
+      "goalName": "European Summer Adventure",
+      "estimatedDate": "2025-07-15"
+    }
+  }
+}
+```
+
+#### GET /goals/categories
+Get available goal categories with their default icons, colors, and descriptions.
+
+**Response:**
+```json
+{
+  "categories": [
+    {
+      "name": "travel",
+      "displayName": "Travel & Vacation",
+      "icon": "fa-plane-departure",
+      "color": "#3B82F6",
+      "description": "Trips, vacations, and travel experiences"
+    },
+    {
+      "name": "emergency",
+      "displayName": "Emergency Fund",
+      "icon": "fa-shield-alt",
+      "color": "#EF4444",
+      "description": "Emergency savings and financial security"
+    },
+    {
+      "name": "transportation",
+      "displayName": "Transportation",
+      "icon": "fa-car",
+      "color": "#F59E0B",
+      "description": "Vehicle purchases, maintenance, and transport"
+    },
+    {
+      "name": "home",
+      "displayName": "Home & Property",
+      "icon": "fa-home",
+      "color": "#8B5CF6",
+      "description": "House down payment, furniture, home improvements"
+    },
+    {
+      "name": "education",
+      "displayName": "Education",
+      "icon": "fa-graduation-cap",
+      "color": "#6366F1",
+      "description": "Courses, degrees, certifications, and learning"
+    },
+    {
+      "name": "technology",
+      "displayName": "Technology",
+      "icon": "fa-laptop",
+      "color": "#10B981",
+      "description": "Gadgets, computers, and tech equipment"
+    },
+    {
+      "name": "health",
+      "displayName": "Health & Wellness",
+      "icon": "fa-heartbeat",
+      "color": "#EC4899",
+      "description": "Medical expenses, fitness, and wellness"
+    },
+    {
+      "name": "business",
+      "displayName": "Business & Investment",
+      "icon": "fa-briefcase",
+      "color": "#6B7280",
+      "description": "Business ventures, investments, and entrepreneurship"
+    },
+    {
+      "name": "entertainment",
+      "displayName": "Entertainment",
+      "icon": "fa-film",
+      "color": "#F59E0B",
+      "description": "Hobbies, entertainment, and leisure activities"
+    },
+    {
+      "name": "gifts",
+      "displayName": "Gifts & Special Events",
+      "icon": "fa-gift",
+      "color": "#EC4899",
+      "description": "Presents, celebrations, and special occasions"
+    },
+    {
+      "name": "other",
+      "displayName": "Other Goals",
+      "icon": "fa-bullseye",
+      "color": "#9CA3AF",
+      "description": "Custom goals and miscellaneous savings"
+    }
+  ]
+}
+```
+
+#### POST /goals/bulk-contribute
+Add contributions to multiple goals at once (useful for distributing income across goals).
+
+**Request Body:**
+```json
+{
+  "totalAmount": 1000.00,
+  "source": "salary",
+  "date": "2025-06-11",
+  "notes": "Monthly salary distribution",
+  "distributions": [
+    {
+      "goalId": 1,
+      "amount": 400.00,
+      "notes": "Priority goal - vacation"
+    },
+    {
+      "goalId": 2,
+      "amount": 300.00,
+      "notes": "Emergency fund building"
+    },
+    {
+      "goalId": 3,
+      "amount": 300.00,
+      "notes": "Car savings"
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "summary": {
+    "totalAmount": 1000.00,
+    "distributedAmount": 1000.00,
+    "successfulContributions": 3,
+    "failedContributions": 0,
+    "contributionsCreated": [
+      {
+        "goalId": 1,
+        "goalName": "European Summer Adventure",
+        "contributionId": 105,
+        "amount": 400.00
+      },
+      {
+        "goalId": 2,
+        "goalName": "Emergency Fund",
+        "contributionId": 106,
+        "amount": 300.00
+      },
+      {
+        "goalId": 3,
+        "goalName": "New Car",
+        "contributionId": 107,
+        "amount": 300.00
+      }
+    ]
+  },
+  "goalsUpdated": [
+    {
+      "id": 1,
+      "name": "European Summer Adventure",
+      "newCurrentAmount": 2450.00,
+      "newProgress": 81.67,
+      "milestonesReached": [
+        {
+          "percentage": 75,
+          "amount": 2250.00,
+          "justReached": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Emergency Fund",
+      "newCurrentAmount": 8800.00,
+      "newProgress": 73.33,
+      "milestonesReached": []
+    },
+    {
+      "id": 3,
+      "name": "New Car",
+      "newCurrentAmount": 2300.00,
+      "newProgress": 15.33,
+      "milestonesReached": []
+    }
+  ]
+}
+```
+
+#### GET /goals/analytics
+Get advanced analytics and insights about goal progress and savings patterns.
+
+**Query Parameters:**
+- `period`: Analysis period (3months, 6months, 1year, all)
+- `goalIds`: Specific goals to analyze (comma-separated)
+- `includeProjections`: Include future projections (default: true)
+
+**Response:**
+```json
+{
+  "period": "6months",
+  "dateRange": {
+    "startDate": "2024-12-11",
+    "endDate": "2025-06-11"
+  },
+  "savingsVelocity": {
+    "averageMonthlyContribution": 1291.67,
+    "trend": "increasing",
+    "velocityChange": "+15.5%",
+    "peakMonth": "2025-05",
+    "peakAmount": 1800.00,
+    "consistencyScore": 78.5
+  },
+  "goalCompletionPatterns": {
+    "averageTimeToCompletion": "8.5 months",
+    "fastestCompletion": "3.2 months",
+    "slowestCompletion": "14.8 months",
+    "completionRate": 12.5,
+    "abandonmentRate": 5.0,
+    "successFactors": [
+      "Regular monthly contributions",
+      "Realistic target dates",
+      "Clear milestone tracking"
+    ]
+  },
+  "contributionPatterns": {
+    "mostProductiveDay": "friday",
+    "averageContributionSize": 156.78,
+    "contributionFrequency": "bi-weekly",
+    "seasonalTrends": [
+      { "quarter": "Q1", "averageContribution": 1200.00 },
+      { "quarter": "Q2", "averageContribution": 1450.00 }
+    ],
+    "sourceReliability": {
+      "salary": { "consistency": 95.2, "reliability": "high" },
+      "bonus": { "consistency": 34.6, "reliability": "low" },
+      "savings": { "consistency": 67.8, "reliability": "medium" }
+    }
+  },
+  "milestoneAnalysis": {
+    "averageTimeBetweenMilestones": "2.3 months",
+    "milestoneMotivationImpact": "+23% contribution increase",
+    "mostMotivatingMilestone": "50% completion",
+    "leastMotivatingMilestone": "25% completion"
+  },
+  "projections": {
+    "nextMonthProjection": {
+      "estimatedContributions": 1400.00,
+      "likelyGoalsCompleted": 1,
+      "newMilestonesReached": 3
+    },
+    "yearEndProjection": {
+      "estimatedTotalSaved": 42000.00,
+      "goalsLikelyCompleted": 3,
+      "progressPercentage": 87.5,
+      "recommendedAdjustments": [
+        "Increase car fund contributions by $50/month",
+        "Consider extending vacation goal deadline by 2 weeks"
+      ]
+    }
+  },
+  "recommendations": {
+    "optimizationSuggestions": [
+      "Consider automating contributions to improve consistency",
+      "Set up milestone rewards to maintain motivation",
+      "Review and adjust target dates based on current velocity"
+    ],
+    "riskAlerts": [
+      "Goal #3 (New Car) is falling behind schedule",
+      "Emergency fund progress has slowed in recent months"
+    ],
+    "opportunityHighlights": [
+      "Vacation goal ahead of schedule - consider increasing target",
+      "Salary contributions are very consistent - good foundation"
+    ]
+  }
+}
+```
+
+### Goal Status Values
+- `active`: Goal is current and being worked on
+- `completed`: Goal has reached 100% of target amount
+- `paused`: Goal is temporarily inactive (not accepting contributions)
+- `overdue`: Goal has passed target date without completion
+- `cancelled`: Goal has been cancelled (soft-deleted)
+- `upcoming`: Goal with future start date
+
+### Goal Priority Values
+- `low`: Nice-to-have goals with flexible timelines
+- `medium`: Important goals with moderate urgency (default)
+- `high`: Critical goals requiring focused attention and regular contributions
+
+### Contribution Source Values
+- `salary`: Regular employment income
+- `bonus`: Work bonuses, commissions, overtime pay
+- `savings`: Transfer from existing savings accounts
+- `gift`: Money received as gifts
+- `other`: Miscellaneous income sources
+
+### Goal Categories
+Goals can be categorized to help with organization and reporting:
+- `travel`: Vacations, trips, travel experiences
+- `emergency`: Emergency funds, financial security
+- `transportation`: Cars, bikes, transportation needs
+- `home`: House down payments, furniture, home improvements
+- `education`: Courses, degrees, certifications
+- `technology`: Gadgets, computers, tech equipment
+- `health`: Medical expenses, fitness, wellness
+- `business`: Business ventures, investments
+- `entertainment`: Hobbies, entertainment, leisure
+- `gifts`: Presents, special events, celebrations
+- `other`: Custom or miscellaneous goals
+
+### Goal Icons (FontAwesome Classes)
+Available icons for goals:
+- `fa-plane-departure`: Travel/vacation goals
+- `fa-shield-alt`: Emergency fund/security
+- `fa-car`: Transportation/vehicle goals
+- `fa-home`: Home/property goals
+- `fa-graduation-cap`: Education/learning goals
+- `fa-laptop`: Technology/gadget goals
+- `fa-heartbeat`: Health/wellness goals
+- `fa-briefcase`: Business/career goals
+- `fa-film`: Entertainment/hobby goals
+- `fa-gift`: Gift/special event goals
+- `fa-bullseye`: General/other goals
+
+### Error Handling for Goals
+
+#### Goal-Specific Error Codes
+- `GOAL_NOT_FOUND`: Goal with specified ID doesn't exist
+- `GOAL_ALREADY_COMPLETED`: Cannot modify completed goal
+- `GOAL_CONTRIBUTION_EXCEEDS_TARGET`: Contribution would exceed target amount
+- `GOAL_INVALID_TARGET_DATE`: Target date must be in the future
+- `GOAL_INVALID_AMOUNT`: Amount must be positive and within limits
+- `GOAL_DUPLICATE_NAME`: Goal name already exists for user
+- `CONTRIBUTION_NOT_FOUND`: Contribution with specified ID doesn't exist
+- `CONTRIBUTION_CANNOT_MODIFY`: Contribution cannot be modified (too old)
+- `BULK_CONTRIBUTION_MISMATCH`: Total amount doesn't match distribution sum
+
+#### Example Error Responses
+```json
+{
+  "error": true,
+  "message": "Goal not found",
+  "code": "GOAL_NOT_FOUND",
+  "details": {
+    "goalId": 999,
+    "userId": 123
+  }
+}
+```
+
+```json
+{
+  "error": true,
+  "message": "Contribution exceeds target amount",
+  "code": "GOAL_CONTRIBUTION_EXCEEDS_TARGET",
+  "details": {
+    "goalId": 1,
+    "contributionAmount": 500.00,
+    "currentAmount": 2800.00,
+    "targetAmount": 3000.00,
+    "maxAllowedContribution": 200.00
+  }
+}
+```

@@ -14,11 +14,22 @@ export const USER_ENDPOINTS = {
 };
 
 export const BUDGET_ENDPOINTS = {
+    // Basic CRUD operations
     GET_ALL: '/budgets',
     CREATE: '/budgets',
     GET_BY_ID: (id) => `/budgets/${id}`,
     UPDATE: (id) => `/budgets/${id}`,
     DELETE: (id) => `/budgets/${id}`,
+    
+    // Advanced endpoints
+    SUMMARY: '/budgets/summary',
+    CATEGORIES: '/budgets/categories',
+    ALERTS: '/budgets/alerts',
+    DUPLICATE: (id) => `/budgets/duplicate/${id}`,
+    BATCH_CREATE: '/budgets/batch',
+    RECURRING_GENERATE: '/budgets/recurring/generate',
+    ARCHIVE: (id) => `/budgets/${id}/archive`,
+    RESTORE: (id) => `/budgets/${id}/restore`,
 };
 
 export const TRANSACTION_ENDPOINTS = {

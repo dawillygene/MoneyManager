@@ -195,546 +195,838 @@ Verify token validity.
 ### Budget Endpoints
 
 #### GET /api/budgets
-Get all budgets for authenticated user.
+Get all budgets for the authenticated user with optional filtering and pagination.
 
 **Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `page` (integer, default: 1) - Page number
+- `limit` (integer, default: 10, max: 100) - Items per page
+- `sortBy` (string, default: "createdAt") - Sort field (name, amount, createdAt, startDate, endDate)
+- `sortOrder` (string, default: "asc") - Sort direction (asc, desc)
+- `category` (string, optional) - Filter by category
+- `status` (string, optional) - Filter by status (active, expired, upcoming)
+- `recurring` (string, optional) - Filter by recurring type (none, daily, weekly, monthly, yearly)
+- `search` (string, optional) - Search in budget names and descriptions
+
+**Example Request:**
+```
+GET /api/budgets?page=1&limit=20&sortBy=startDate&sortOrder=desc&status=active
+```
+
+**Response (200 OK):**
+```json
+{
+  "budgets": [
+    {
+      "id": 1,
+      "name": "Housing Budget",
+      "description": "Rent, utilities, maintenance",
+      "amount": 1000000.00,
+      "spent": 850000.00,
+      "remaining": 150000.00,
+      "category": "Housing",
+      "categoryIcon": "fas fa-home",
+      "categoryColor": "#8B5CF6",
+      "startDate": "2025-06-01",
+      "endDate": "2025-06-30",
+      "recurring": "monthly",
+      "alertLevel": 80,
+      "alertTriggered": true,
+      "status": "active",
+      "progress": 85.0,
+      "daysRemaining": 18,
+      "averageDailySpend": 47222.22,
+      "projectedTotal": 850000.00,
+      "isOverBudget": false,
+      "tags": ["housing", "essential", "monthly"],
+      "createdAt": "2025-05-15T10:30:00Z",
+      "updatedAt": "2025-06-10T14:20:00Z"
+    }
+  ],
+  "pagination": {
+    "currentPage": 1,
+    "totalPages": 3,
+    "totalItems": 25,
+    "itemsPerPage": 10,
+    "hasNextPage": true,
+    "hasPrevPage": false
+  },
+  "summary": {
+    "totalBudgets": 25,
+    "activeBudgets": 18,
+    "totalBudgetAmount": 2500000.00,
+    "totalSpent": 1490000.00,
+    "totalRemaining": 1010000.00,
+    "overBudgetCount": 2,
+    "alertTriggeredCount": 8
+  }
+}
+```
 
 #### POST /api/budgets
 Create a new budget.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-**Request:**
+**Request Body:**
 ```json
 {
-  "name": "Monthly Budget",
-  "amount": 2000.00,
-  "category": "General",
-  "startDate": "2025-01-01",
-  "endDate": "2025-01-31",
-  "description": "Monthly expense budget",
-  "recurring": "Monthly",
-  "alertLevel": 80
+  "name": "Entertainment Budget",
+  "description": "Movies, events, subscriptions",
+  "amount": 200000.00,
+  "category": "Entertainment",
+  "categoryIcon": "fas fa-film",
+  "categoryColor": "#3B82F6",
+  "startDate": "2025-06-01",
+  "endDate": "2025-06-30",
+  "recurring": "monthly",
+  "alertLevel": 80,
+  "tags": ["leisure", "fun", "monthly"]
 }
 ```
 
-#### GET /api/budgets/{id}
-Get specific budget by ID.
-
-#### PUT /api/budgets/{id}
-Update specific budget.
-
-#### DELETE /api/budgets/{id}
-Delete specific budget.
-
-### Transaction Endpoints
-
-#### GET /api/transactions
-Get all transactions for authenticated user with optional filtering.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Query Parameters (all optional):**
-- `type` - Filter by transaction type ("income" or "expense")
-- `category` - Filter by category name
-- `startDate` - Filter from this date (YYYY-MM-DD format)
-- `endDate` - Filter to this date (YYYY-MM-DD format)
-- `year` - Filter by specific year
-- `month` - Filter by specific month (1-12, requires year parameter)
-- `limit` - Limit number of results returned
-
-**Examples:**
-```
-GET /api/transactions - Get all transactions
-GET /api/transactions?type=expense - Get only expense transactions
-GET /api/transactions?category=Food - Get transactions in Food category
-GET /api/transactions?startDate=2025-01-01&endDate=2025-01-31 - Get January transactions
-GET /api/transactions?type=income&category=Salary&startDate=2025-01-01 - Combined filters
-GET /api/transactions?year=2025&month=6 - Get June 2025 transactions
-GET /api/transactions?limit=10 - Get latest 10 transactions
-```
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "amount": 50.00,
-    "description": "Grocery shopping",
-    "category": "Food & Dining",
-    "type": "expense",
-    "date": "2025-06-11",
-    "notes": "Weekly grocery shopping",
-    "userId": 1
-  }
-]
-```
-
-#### POST /api/transactions
-Create a new transaction.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Request:**
-```json
-{
-  "amount": 50.00,
-  "description": "Grocery shopping",
-  "category": "Food & Dining",
-  "type": "expense",
-  "date": "2025-06-11",
-  "notes": "Weekly grocery shopping"
-}
-```
-
-**Required Fields:**
-- `amount` (number) - Transaction amount
-- `description` (string) - Transaction description
-- `category` (string) - Transaction category
-- `type` (string) - Must be "income" or "expense"
-- `date` (string) - Date in YYYY-MM-DD format
-
-**Optional Fields:**
-- `notes` (string) - Additional notes
+**Validation Rules:**
+- `name`: Required, 3-100 characters, unique per user
+- `amount`: Required, positive number, max 999,999,999.99
+- `category`: Required, valid category from predefined list
+- `startDate`: Required, valid date format (YYYY-MM-DD)
+- `endDate`: Required, must be after startDate
+- `alertLevel`: Optional, 1-100 (default: 80)
+- `recurring`: Optional, one of: none, daily, weekly, monthly, yearly
 
 **Response (201 Created):**
 ```json
 {
-  "id": 1,
-  "amount": 50.00,
-  "description": "Grocery shopping",
-  "category": "Food & Dining",
-  "type": "expense",
-  "date": "2025-06-11",
-  "notes": "Weekly grocery shopping",
-  "userId": 1
+  "id": 26,
+  "name": "Entertainment Budget",
+  "description": "Movies, events, subscriptions",
+  "amount": 200000.00,
+  "spent": 0.00,
+  "remaining": 200000.00,
+  "category": "Entertainment",
+  "categoryIcon": "fas fa-film",
+  "categoryColor": "#3B82F6",
+  "startDate": "2025-06-01",
+  "endDate": "2025-06-30",
+  "recurring": "monthly",
+  "alertLevel": 80,
+  "alertTriggered": false,
+  "status": "active",
+  "progress": 0.0,
+  "daysRemaining": 18,
+  "averageDailySpend": 0.00,
+  "projectedTotal": 0.00,
+  "isOverBudget": false,
+  "tags": ["leisure", "fun", "monthly"],
+  "createdAt": "2025-06-11T15:30:00Z",
+  "updatedAt": "2025-06-11T15:30:00Z"
 }
 ```
 
-#### GET /api/transactions/{id}
-Get specific transaction by ID.
+#### GET /api/budgets/{id}
+Get a specific budget by ID with detailed information and recent transactions.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-**Response:**
+**Path Parameters:**
+- `id` (integer) - Budget ID
+
+**Query Parameters:**
+- `includeTransactions` (boolean, default: true) - Include recent transactions
+- `transactionLimit` (integer, default: 10) - Limit number of transactions
+
+**Response (200 OK):**
 ```json
 {
   "id": 1,
-  "amount": 50.00,
-  "description": "Grocery shopping",
-  "category": "Food & Dining",
-  "type": "expense",
-  "date": "2025-06-11",
-  "notes": "Weekly grocery shopping",
-  "userId": 1
+  "name": "Housing Budget",
+  "description": "Rent, utilities, maintenance",
+  "amount": 1000000.00,
+  "spent": 850000.00,
+  "remaining": 150000.00,
+  "category": "Housing",
+  "categoryIcon": "fas fa-home",
+  "categoryColor": "#8B5CF6",
+  "startDate": "2025-06-01",
+  "endDate": "2025-06-30",
+  "recurring": "monthly",
+  "alertLevel": 80,
+  "alertTriggered": true,
+  "status": "active",
+  "progress": 85.0,
+  "daysRemaining": 18,
+  "averageDailySpend": 47222.22,
+  "projectedTotal": 850000.00,
+  "isOverBudget": false,
+  "tags": ["housing", "essential", "monthly"],
+  "createdAt": "2025-05-15T10:30:00Z",
+  "updatedAt": "2025-06-10T14:20:00Z",
+  "transactions": [
+    {
+      "id": 101,
+      "amount": 650000.00,
+      "description": "Monthly rent",
+      "date": "2025-06-01",
+      "type": "expense",
+      "category": "Housing"
+    },
+    {
+      "id": 102,
+      "amount": 200000.00,
+      "description": "Utilities bill",
+      "date": "2025-06-05",
+      "type": "expense",
+      "category": "Housing"
+    }
+  ],
+  "analytics": {
+    "weeklySpending": [
+      { "week": "2025-W23", "amount": 650000.00 },
+      { "week": "2025-W24", "amount": 200000.00 }
+    ],
+    "dailyAverage": 47222.22,
+    "spendingTrend": "increasing",
+    "daysToDepletion": 3.2,
+    "recommendedDailyLimit": 8333.33
+  }
 }
 ```
 
-#### PUT /api/transactions/{id}
-Update specific transaction.
+#### PUT /api/budgets/{id}
+Update a specific budget.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-**Request:** Same format as POST request
+**Path Parameters:**
+- `id` (integer) - Budget ID
 
-**Response:** Updated transaction object
+**Request Body:**
+```json
+{
+  "name": "Updated Housing Budget",
+  "description": "Rent, utilities, maintenance, insurance",
+  "amount": 1200000.00,
+  "category": "Housing",
+  "categoryIcon": "fas fa-home",
+  "categoryColor": "#8B5CF6",
+  "startDate": "2025-06-01",
+  "endDate": "2025-06-30",
+  "recurring": "monthly",
+  "alertLevel": 75,
+  "tags": ["housing", "essential", "monthly", "updated"]
+}
+```
 
-#### DELETE /api/transactions/{id}
-Delete specific transaction.
+**Response (200 OK):**
+```json
+{
+  "id": 1,
+  "name": "Updated Housing Budget",
+  "description": "Rent, utilities, maintenance, insurance",
+  "amount": 1200000.00,
+  "spent": 850000.00,
+  "remaining": 350000.00,
+  "category": "Housing",
+  "categoryIcon": "fas fa-home",
+  "categoryColor": "#8B5CF6",
+  "startDate": "2025-06-01",
+  "endDate": "2025-06-30",
+  "recurring": "monthly",
+  "alertLevel": 75,
+  "alertTriggered": false,
+  "status": "active",
+  "progress": 70.83,
+  "daysRemaining": 18,
+  "averageDailySpend": 47222.22,
+  "projectedTotal": 850000.00,
+  "isOverBudget": false,
+  "tags": ["housing", "essential", "monthly", "updated"],
+  "createdAt": "2025-05-15T10:30:00Z",
+  "updatedAt": "2025-06-11T16:45:00Z"
+}
+```
+
+#### DELETE /api/budgets/{id}
+Delete a specific budget. This will also remove all associated transactions if they are budget-specific.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Path Parameters:**
+- `id` (integer) - Budget ID
+
+**Query Parameters:**
+- `cascade` (boolean, default: false) - Whether to delete associated transactions
+
+**Response (200 OK):**
+```json
+{
+  "message": "Budget deleted successfully",
+  "deletedBudgetId": 1,
+  "deletedTransactions": 12,
+  "reassignedTransactions": 0
+}
+```
+
+#### GET /api/budgets/summary
+Get budget summary and overview statistics for the authenticated user.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `period` (string, default: "current") - Time period (current, monthly, yearly, custom)
+- `startDate` (string, optional) - Start date for custom period (YYYY-MM-DD)
+- `endDate` (string, optional) - End date for custom period (YYYY-MM-DD)
+
+**Response (200 OK):**
+```json
+{
+  "period": "current",
+  "dateRange": {
+    "startDate": "2025-06-01",
+    "endDate": "2025-06-30"
+  },
+  "totalBudgets": 6,
+  "activeBudgets": 6,
+  "totalBudgetAmount": 2500000.00,
+  "totalSpent": 1490000.00,
+  "totalRemaining": 1010000.00,
+  "overBudgetCount": 1,
+  "alertTriggeredCount": 3,
+  "categoryBreakdown": [
+    {
+      "category": "Housing",
+      "budgeted": 1000000.00,
+      "spent": 850000.00,
+      "progress": 85.0,
+      "status": "warning"
+    },
+    {
+      "category": "Food & Dining",
+      "budgeted": 500000.00,
+      "spent": 420000.00,
+      "progress": 84.0,
+      "status": "warning"
+    },
+    {
+      "category": "Transportation",
+      "budgeted": 300000.00,
+      "spent": 120000.00,
+      "progress": 40.0,
+      "status": "good"
+    },
+    {
+      "category": "Entertainment",
+      "budgeted": 200000.00,
+      "spent": 320000.00,
+      "progress": 160.0,
+      "status": "over"
+    }
+  ]
+}
+```
+
+#### GET /api/budgets/categories
+Get available budget categories with their default icons and colors.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
 **Response (200 OK):**
 ```json
 {
-  "message": "Transaction deleted successfully"
-}
-```
-
-#### GET /api/transactions/budget/{budgetId}
-Get transactions for specific budget.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-#### GET /api/transactions/filter/type/{type}
-Get transactions filtered by type.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Path Parameters:**
-- `type` - Must be "income" or "expense"
-
-**Examples:**
-```
-GET /api/transactions/filter/type/income
-GET /api/transactions/filter/type/expense
-```
-
-#### GET /api/transactions/filter/category/{category}
-Get transactions filtered by category.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Path Parameters:**
-- `category` - Category name (URL encoded if contains spaces)
-
-**Examples:**
-```
-GET /api/transactions/filter/category/Food
-GET /api/transactions/filter/category/Food%20%26%20Dining
-```
-
-#### GET /api/transactions/filter/date-range
-Get transactions within a date range.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Query Parameters:**
-- `startDate` (required) - Start date in YYYY-MM-DD format
-- `endDate` (required) - End date in YYYY-MM-DD format
-
-**Example:**
-```
-GET /api/transactions/filter/date-range?startDate=2025-01-01&endDate=2025-01-31
-```
-
-#### GET /api/transactions/statistics
-Get transaction statistics for the authenticated user.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Response:**
-```json
-{
-  "totalTransactions": 25,
-  "incomeTransactions": 5,
-  "expenseTransactions": 20,
-  "recentTransactions": [
+  "categories": [
     {
-      "id": 1,
-      "amount": 50.00,
-      "description": "Grocery shopping",
-      "category": "Food & Dining",
-      "type": "expense",
-      "date": "2025-06-11",
-      "notes": "Weekly grocery shopping",
-      "userId": 1
+      "name": "Housing",
+      "icon": "fas fa-home",
+      "color": "#8B5CF6",
+      "description": "Rent, utilities, maintenance"
+    },
+    {
+      "name": "Food & Dining",
+      "icon": "fas fa-utensils",
+      "color": "#3B82F6",
+      "description": "Groceries, restaurants, takeout"
+    },
+    {
+      "name": "Transportation",
+      "icon": "fas fa-car",
+      "color": "#F59E0B",
+      "description": "Fuel, public transit, maintenance"
+    },
+    {
+      "name": "Entertainment",
+      "icon": "fas fa-film",
+      "color": "#3B82F6",
+      "description": "Movies, events, subscriptions"
+    },
+    {
+      "name": "Shopping",
+      "icon": "fas fa-shopping-bag",
+      "color": "#10B981",
+      "description": "Clothes, accessories, gifts"
+    },
+    {
+      "name": "Healthcare",
+      "icon": "fas fa-heartbeat",
+      "color": "#EF4444",
+      "description": "Medicine, doctor visits, insurance"
+    },
+    {
+      "name": "Education",
+      "icon": "fas fa-graduation-cap",
+      "color": "#6366F1",
+      "description": "Courses, books, training"
+    },
+    {
+      "name": "Travel",
+      "icon": "fas fa-plane",
+      "color": "#8B5CF6",
+      "description": "Trips, accommodation, flights"
+    },
+    {
+      "name": "Insurance",
+      "icon": "fas fa-shield-alt",
+      "color": "#6B7280",
+      "description": "Life, health, property insurance"
+    },
+    {
+      "name": "Savings",
+      "icon": "fas fa-piggy-bank",
+      "color": "#10B981",
+      "description": "Emergency fund, investments"
+    },
+    {
+      "name": "Debt Payment",
+      "icon": "fas fa-credit-card",
+      "color": "#EF4444",
+      "description": "Loan payments, credit cards"
+    },
+    {
+      "name": "Personal Care",
+      "icon": "fas fa-user",
+      "color": "#F59E0B",
+      "description": "Haircuts, gym, personal items"
+    },
+    {
+      "name": "Gifts & Donations",
+      "icon": "fas fa-gift",
+      "color": "#EC4899",
+      "description": "Presents, charity, donations"
+    },
+    {
+      "name": "Business",
+      "icon": "fas fa-briefcase",
+      "color": "#6B7280",
+      "description": "Office supplies, networking"
+    },
+    {
+      "name": "Other",
+      "icon": "fas fa-ellipsis-h",
+      "color": "#9CA3AF",
+      "description": "Miscellaneous expenses"
     }
   ]
 }
 ```
 
-### Goal Endpoints
-
-#### GET /api/goals
-Get all goals for authenticated user.
+#### POST /api/budgets/duplicate/{id}
+Duplicate an existing budget with optional modifications.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-#### POST /api/goals
-Create a new goal.
+**Path Parameters:**
+- `id` (integer) - Source budget ID to duplicate
 
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Request:**
+**Request Body:**
 ```json
 {
-  "name": "Emergency Fund",
-  "targetAmount": 5000.00,
-  "currentAmount": 1500.00,
-  "targetDate": "2025-12-31",
-  "description": "Build emergency fund",
-  "icon": "fa-shield-alt"
+  "name": "July Housing Budget",
+  "startDate": "2025-07-01",
+  "endDate": "2025-07-31",
+  "amount": 1100000.00,
+  "copyTransactions": false
 }
 ```
 
-#### GET /api/goals/{id}
-Get specific goal by ID.
-
-#### PUT /api/goals/{id}
-Update specific goal.
-
-#### DELETE /api/goals/{id}
-Delete specific goal.
-
-### User Profile Endpoints
-
-#### GET /api/user/profile
-Get current user profile.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-#### PUT /api/user/update
-Update user profile.
-
-**Headers:** `Authorization: Bearer <access_token>`
-
-**Request:**
+**Response (201 Created):**
 ```json
 {
-  "name": "Updated Name",
-  "email": "updated@example.com"
+  "id": 27,
+  "name": "July Housing Budget",
+  "description": "Rent, utilities, maintenance",
+  "amount": 1100000.00,
+  "spent": 0.00,
+  "remaining": 1100000.00,
+  "category": "Housing",
+  "categoryIcon": "fas fa-home",
+  "categoryColor": "#8B5CF6",
+  "startDate": "2025-07-01",
+  "endDate": "2025-07-31",
+  "recurring": "monthly",
+  "alertLevel": 80,
+  "alertTriggered": false,
+  "status": "upcoming",
+  "progress": 0.0,
+  "daysRemaining": 49,
+  "averageDailySpend": 0.00,
+  "projectedTotal": 0.00,
+  "isOverBudget": false,
+  "tags": ["housing", "essential", "monthly"],
+  "sourceBudgetId": 1,
+  "createdAt": "2025-06-11T17:00:00Z",
+  "updatedAt": "2025-06-11T17:00:00Z"
 }
 ```
 
-#### DELETE /api/user/delete
-Delete user account.
+#### GET /api/budgets/alerts
+Get budget alerts for budgets that have exceeded their alert threshold.
 
 **Headers:** `Authorization: Bearer <access_token>`
 
-### Report Endpoints
+**Query Parameters:**
+- `severity` (string, optional) - Filter by severity (warning, critical, over)
+- `category` (string, optional) - Filter by category
 
-#### GET /api/reports/monthly
-Get monthly financial report.
+**Response (200 OK):**
+```json
+{
+  "alerts": [
+    {
+      "budgetId": 1,
+      "budgetName": "Housing Budget",
+      "category": "Housing",
+      "severity": "warning",
+      "message": "You've spent 85% of your housing budget",
+      "currentSpent": 850000.00,
+      "budgetAmount": 1000000.00,
+      "alertLevel": 80,
+      "daysRemaining": 18,
+      "projectedOverage": 0.00,
+      "createdAt": "2025-06-10T14:20:00Z"
+    },
+    {
+      "budgetId": 4,
+      "budgetName": "Entertainment Budget",
+      "category": "Entertainment",
+      "severity": "critical",
+      "message": "You've exceeded your entertainment budget by Tsh 120,000",
+      "currentSpent": 320000.00,
+      "budgetAmount": 200000.00,
+      "alertLevel": 80,
+      "daysRemaining": 18,
+      "projectedOverage": 120000.00,
+      "createdAt": "2025-06-08T09:30:00Z"
+    }
+  ],
+  "summary": {
+    "totalAlerts": 2,
+    "warningCount": 1,
+    "criticalCount": 1,
+    "overBudgetCount": 1
+  }
+}
+```
+
+#### POST /api/budgets/batch
+Create multiple budgets at once (useful for monthly budget setup).
 
 **Headers:** `Authorization: Bearer <access_token>`
-**Query Parameters:** `year`, `month`
 
-#### GET /api/reports/yearly
-Get yearly financial report.
+**Request Body:**
+```json
+{
+  "budgets": [
+    {
+      "name": "July Housing",
+      "description": "Rent and utilities",
+      "amount": 1000000.00,
+      "category": "Housing",
+      "startDate": "2025-07-01",
+      "endDate": "2025-07-31",
+      "recurring": "monthly"
+    },
+    {
+      "name": "July Food",
+      "description": "Groceries and dining",
+      "amount": 500000.00,
+      "category": "Food & Dining",
+      "startDate": "2025-07-01",
+      "endDate": "2025-07-31",
+      "recurring": "monthly"
+    }
+  ]
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "created": [
+    {
+      "id": 28,
+      "name": "July Housing",
+      "amount": 1000000.00,
+      "category": "Housing",
+      "status": "created"
+    },
+    {
+      "id": 29,
+      "name": "July Food",
+      "amount": 500000.00,
+      "category": "Food & Dining",
+      "status": "created"
+    }
+  ],
+  "failed": [],
+  "summary": {
+    "totalRequested": 2,
+    "successfullyCreated": 2,
+    "failed": 0
+  }
+}
+```
+
+#### GET /api/budgets/recurring/generate
+Generate upcoming recurring budgets based on existing recurring budget templates.
 
 **Headers:** `Authorization: Bearer <access_token>`
-**Query Parameters:** `year`
 
-#### GET /api/reports/custom
-Get custom date range report.
+**Query Parameters:**
+- `months` (integer, default: 1, max: 12) - Number of months to generate ahead
+- `dryRun` (boolean, default: false) - Preview without creating
+
+**Response (200 OK):**
+```json
+{
+  "preview": [
+    {
+      "templateId": 1,
+      "templateName": "Housing Budget",
+      "suggestedBudgets": [
+        {
+          "name": "Housing Budget - July 2025",
+          "amount": 1000000.00,
+          "startDate": "2025-07-01",
+          "endDate": "2025-07-31",
+          "category": "Housing"
+        },
+        {
+          "name": "Housing Budget - August 2025",
+          "amount": 1000000.00,
+          "startDate": "2025-08-01",
+          "endDate": "2025-08-31",
+          "category": "Housing"
+        }
+      ]
+    }
+  ],
+  "created": [],
+  "summary": {
+    "templatesFound": 5,
+    "budgetsToCreate": 10,
+    "estimatedTotalAmount": 12500000.00
+  }
+}
+```
+
+#### PUT /api/budgets/{id}/archive
+Archive a budget (soft delete - keeps for historical data but removes from active lists).
 
 **Headers:** `Authorization: Bearer <access_token>`
-**Query Parameters:** `startDate`, `endDate`
 
-#### GET /api/reports/export
-Export reports to file.
+**Path Parameters:**
+- `id` (integer) - Budget ID
+
+**Response (200 OK):**
+```json
+{
+  "message": "Budget archived successfully",
+  "budgetId": 1,
+  "archivedAt": "2025-06-11T18:00:00Z"
+}
+```
+
+#### PUT /api/budgets/{id}/restore
+Restore an archived budget.
 
 **Headers:** `Authorization: Bearer <access_token>`
-**Query Parameters:** `type`, `year`, `month`, `startDate`, `endDate`
 
-## Database Models
+**Path Parameters:**
+- `id` (integer) - Budget ID
 
-### User Model
-- `id` (Long, Primary Key)
-- `fullName` (String, Required)
-- `email` (String, Required, Unique)
-- `password` (String, Required, Encrypted)
-- `confirmPassword` (String, Required)
-- `agreeToTerms` (Boolean, Required)
-- `refreshToken` (String, Nullable)
+**Response (200 OK):**
+```json
+{
+  "message": "Budget restored successfully",
+  "budgetId": 1,
+  "restoredAt": "2025-06-11T18:05:00Z"
+}
+```
 
-### Budget Model
-- `id` (Long, Primary Key)
-- `name` (String, Required)
-- `amount` (BigDecimal, Required)
-- `category` (String, Required)
-- `startDate` (LocalDate, Required)
-- `endDate` (LocalDate, Required)
-- `description` (String)
-- `recurring` (String)
-- `alertLevel` (Integer)
-- `userId` (Long, Required, Foreign Key)
+### Budget Error Handling
 
-### Transaction Model
-- `id` (Long, Primary Key)
-- `date` (LocalDate, Required)
-- `description` (String, Required)
-- `category` (String, Required)
-- `amount` (BigDecimal, Required)
-- `type` (String, Required) // "expense" or "income"
-- `notes` (String)
-- `userId` (Long, Required, Foreign Key)
-
-### Goal Model
-- `id` (Long, Primary Key)
-- `name` (String, Required)
-- `targetAmount` (BigDecimal, Required)
-- `currentAmount` (BigDecimal, Required)
-- `targetDate` (LocalDate, Required)
-- `description` (String)
-- `icon` (String)
-- `userId` (Long, Required, Foreign Key)
-
-## Configuration
-
-### CORS Settings
-- Allowed Origins: `http://localhost:3000`, `http://localhost:5173`
-- Allowed Methods: `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`
-- Allow Credentials: `true`
-- Max Age: `3600` seconds
-
-### JWT Configuration
-- Access Token Expiration: 15 minutes (900,000 ms)
-- Refresh Token Expiration: 7 days (604,800,000 ms)
-- Algorithm: HS256
-- Claims: `userId`, `name`, `email`
-
-### Cookie Settings
-- HttpOnly: `true`
-- SameSite: `Lax`
-- Path: `/`
-- Access Token Max-Age: 900 seconds
-- Refresh Token Max-Age: 604,800 seconds
-
-## Error Handling
-
-### Standard Error Response
+#### Standard Budget Error Response Format
 ```json
 {
   "error": true,
   "message": "Error description",
-  "code": "ERROR_CODE"
+  "code": "ERROR_CODE",
+  "details": {} // Optional additional details
 }
 ```
 
-### HTTP Status Codes
-- `200`: Success
-- `201`: Created
-- `400`: Bad Request
-- `401`: Unauthorized
-- `403`: Forbidden
-- `404`: Not Found
-- `500`: Internal Server Error
+#### Budget-Specific Error Codes
+- `BUDGET_NOT_FOUND`: Budget not found or access denied
+- `BUDGET_CREATION_FAILED`: Failed to create budget
+- `BUDGET_UPDATE_FAILED`: Failed to update budget
+- `BUDGET_DELETION_FAILED`: Failed to delete budget
+- `BUDGET_DUPLICATION_FAILED`: Failed to duplicate budget
+- `BUDGET_ARCHIVE_FAILED`: Failed to archive budget
+- `BUDGET_RESTORE_FAILED`: Failed to restore budget
+- `BUDGETS_RETRIEVAL_FAILED`: Failed to retrieve budgets
+- `SUMMARY_RETRIEVAL_FAILED`: Failed to retrieve budget summary
+- `ALERTS_RETRIEVAL_FAILED`: Failed to retrieve budget alerts
+- `CATEGORIES_RETRIEVAL_FAILED`: Failed to retrieve categories
+- `BATCH_CREATION_FAILED`: Failed to create budgets in batch
+- `RECURRING_GENERATION_FAILED`: Failed to generate recurring budgets
+- `VALIDATION_ERROR`: Request validation failed
 
-### Error Codes
-- `PASSWORD_MISMATCH`: Passwords don't match
-- `REGISTRATION_FAILED`: User registration failed
-- `INVALID_CREDENTIALS`: Invalid login credentials
-- `MISSING_REFRESH_TOKEN`: Refresh token missing
-- `INVALID_REFRESH_TOKEN`: Invalid refresh token
-- `INVALID_TOKEN`: Invalid or expired access token
-- `BUDGET_NOT_FOUND`: Budget not found
-- `TRANSACTION_NOT_FOUND`: Transaction not found
-- `GOAL_NOT_FOUND`: Goal not found
+### Budget Features
 
-## Security Implementation
+#### Automatic Spending Tracking
+- **Real-time Updates**: Budget spending is automatically updated when expense transactions are created, updated, or deleted
+- **Category Matching**: Transactions are matched to budgets based on category
+- **Date Range Filtering**: Only transactions within the budget's date range are included in spending calculations
 
-### Password Security
-- BCrypt encryption with salt
-- Minimum password requirements enforced on frontend
-- Password confirmation validation
+#### Smart Alerts System
+- **Threshold Alerts**: Automatically triggered when spending exceeds the specified alert level (default 80%)
+- **Over-Budget Alerts**: Critical alerts when spending exceeds the total budget amount
+- **Alert Management**: Alerts are automatically cleared when spending falls below thresholds
 
-### Token Security
-- Short-lived access tokens (15 minutes)
-- Long-lived refresh tokens (7 days)
-- Secure token storage in database
-- Token invalidation on logout
-- HttpOnly cookies for enhanced security
+#### Advanced Analytics
+- **Progress Tracking**: Real-time calculation of spending progress as a percentage
+- **Projections**: Estimated total spending based on current daily average
+- **Trends**: Analysis of spending patterns (increasing, decreasing, stable)
+- **Recommendations**: Daily spending limits to stay within budget
 
-### Authorization
-- User-specific data access
-- Token-based authentication for all protected endpoints
-- User ID extraction from JWT claims
-- Resource ownership verification
+#### Budget Status Management
+- **Active**: Budget is currently in effect (current date within start/end range)
+- **Upcoming**: Budget starts in the future
+- **Expired**: Budget has ended
+- **Archived**: Budget has been soft-deleted but kept for historical records
 
-## Testing the API
+#### Recurring Budget Templates
+- **Template System**: Mark budgets as recurring (daily, weekly, monthly, yearly)
+- **Auto-Generation**: Create future budgets based on existing templates
+- **Bulk Operations**: Generate multiple months of budgets at once
 
-### Prerequisites
-1. Java 17 or higher
-2. Maven 3.6 or higher
-3. MySQL/PostgreSQL database
-4. Application properties configured
+### Frontend Integration Examples
 
-### Running the Application
-```bash
-mvn spring-boot:run
-```
-
-### Testing Authentication Flow
-1. Register: `POST /api/auth/register`
-2. Login: `POST /api/auth/login`
-3. Access protected endpoints with Bearer token
-4. Refresh token when expired: `POST /api/auth/refresh`
-5. Logout: `POST /api/auth/logout`
-
-### Sample Frontend Integration
+#### Creating a Budget
 ```javascript
-// Login example
-const response = await fetch('http://localhost:8080/api/auth/login', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  credentials: 'include', // Important for cookies
-  body: JSON.stringify({
-    email: 'user@example.com',
-    password: 'password'
-  })
-});
+const createBudget = async (budgetData) => {
+  try {
+    const response = await fetch('http://localhost:8080/api/budgets', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(budgetData)
+    });
 
-const data = await response.json();
-// Store tokens in localStorage/memory
-localStorage.setItem('accessToken', data.accessToken);
-localStorage.setItem('refreshToken', data.refreshToken);
+    if (response.ok) {
+      const budget = await response.json();
+      console.log('Budget created:', budget);
+      return budget;
+    } else {
+      const error = await response.json();
+      console.error('Budget creation failed:', error);
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    console.error('Error creating budget:', error);
+    throw error;
+  }
+};
 ```
 
-## File Structure
-```
-src/main/java/com/example/moneymanager/
-├── controllers/
-│   ├── AuthController.java         # Authentication endpoints
-│   ├── BudgetController.java       # Budget CRUD operations
-│   ├── GoalController.java         # Goal CRUD operations
-│   ├── TransactionController.java  # Transaction CRUD operations
-│   ├── UserController.java         # User profile management
-│   └── ReportController.java       # Financial reporting
-├── models/
-│   ├── User.java                   # User entity
-│   ├── Budget.java                 # Budget entity
-│   ├── Goal.java                   # Goal entity
-│   └── Transaction.java            # Transaction entity
-├── repositories/
-│   ├── UserRepository.java         # User data access
-│   ├── BudgetRepository.java       # Budget data access
-│   ├── GoalRepository.java         # Goal data access
-│   └── TransactionRepository.java  # Transaction data access
-├── services/
-│   ├── UserService.java            # User business logic
-│   ├── JwtService.java             # JWT token management
-│   ├── BudgetService.java          # Budget business logic
-│   ├── GoalService.java            # Goal business logic
-│   ├── TransactionService.java     # Transaction business logic
-│   └── ReportService.java          # Report generation logic
-└── config/
-    └── WebConfig.java              # CORS configuration
+#### Getting Budget Alerts
+```javascript
+const getBudgetAlerts = async () => {
+  try {
+    const response = await fetch('http://localhost:8080/api/budgets/alerts', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+
+    if (response.ok) {
+      const alertsData = await response.json();
+      return alertsData;
+    } else {
+      throw new Error('Failed to fetch budget alerts');
+    }
+  } catch (error) {
+    console.error('Error fetching budget alerts:', error);
+    throw error;
+  }
+};
 ```
 
-## Next Steps
+#### Filtering Budgets
+```javascript
+const getFilteredBudgets = async (filters) => {
+  const params = new URLSearchParams();
+  
+  Object.keys(filters).forEach(key => {
+    if (filters[key] !== null && filters[key] !== undefined) {
+      params.append(key, filters[key]);
+    }
+  });
 
-### For Frontend Integration
-1. Implement automatic token refresh interceptor
-2. Add token storage management (memory + localStorage)
-3. Create protected route components
-4. Handle authentication state globally
-5. Implement logout functionality
+  try {
+    const response = await fetch(`http://localhost:8080/api/budgets?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
 
-### For Production Deployment
-1. Configure production database
-2. Set up SSL/TLS certificates
-3. Configure production CORS origins
-4. Set up monitoring and logging
-5. Implement rate limiting
-6. Add API documentation (Swagger)
+    if (response.ok) {
+      const budgetsData = await response.json();
+      return budgetsData;
+    } else {
+      throw new Error('Failed to fetch budgets');
+    }
+  } catch (error) {
+    console.error('Error fetching budgets:', error);
+    throw error;
+  }
+};
+```
 
-### Potential Enhancements
-1. Email verification for registration
-2. Password reset functionality
-3. Two-factor authentication
-4. File upload for receipts
-5. Data visualization charts
-6. Budget alerts and notifications
-7. Export to PDF/CSV formats
-8. Multi-currency support
+### Database Schema Updates
 
-## Troubleshooting
+The budget system requires these additional database columns:
 
-### Common Issues
-1. **CORS Errors**: Ensure frontend origin is in CORS configuration
-2. **Token Expiration**: Implement proper refresh token handling
-3. **Database Connection**: Check application.properties configuration
-4. **Authentication Failures**: Verify JWT secret key configuration
+```sql
+-- Additional columns for Budget table
+ALTER TABLE budgets ADD COLUMN category_icon VARCHAR(100);
+ALTER TABLE budgets ADD COLUMN category_color VARCHAR(20);
+ALTER TABLE budgets ADD COLUMN spent DECIMAL(12,2) DEFAULT 0.00;
+ALTER TABLE budgets ADD COLUMN alert_triggered BOOLEAN DEFAULT FALSE;
+ALTER TABLE budgets ADD COLUMN is_archived BOOLEAN DEFAULT FALSE;
+ALTER TABLE budgets ADD COLUMN archived_at TIMESTAMP NULL;
+ALTER TABLE budgets ADD COLUMN restored_at TIMESTAMP NULL;
+ALTER TABLE budgets ADD COLUMN source_budget_id BIGINT NULL;
+ALTER TABLE budgets ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE budgets ADD COLUMN updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+ALTER TABLE budgets ADD COLUMN tags TEXT;
+ALTER TABLE budgets MODIFY COLUMN amount DECIMAL(12,2);
 
-### Debug Tips
-1. Enable debug logging for Spring Security
-2. Check network tab for API responses
-3. Verify token format and expiration
-4. Test endpoints with Postman/Insomnia
-5. Check database for user and token data
+-- Add foreign key constraint for source budget
+ALTER TABLE budgets ADD CONSTRAINT fk_budget_source 
+FOREIGN KEY (source_budget_id) REFERENCES budgets(id) ON DELETE SET NULL;
+```
 
-This implementation provides a complete, production-ready Money Manager API with JWT authentication, refresh tokens, and comprehensive financial management features.
+This comprehensive budget management system provides all the functionality needed for effective personal finance management with real-time spending tracking, intelligent alerts, and powerful analytics.
