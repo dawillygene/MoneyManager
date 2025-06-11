@@ -16,10 +16,12 @@ const api = axios.create({
 // Request interceptor to add token to headers
 api.interceptors.request.use(
     async (config) => {
-        // Ensure we have a valid token before making the request
-        await tokenStorage.ensureValidToken();
+        // Skip token injection for auth endpoints to avoid loops
+        if (config.url?.includes('/auth/')) {
+            return config;
+        }
         
-        // Get current access token from memory
+        // Get current access token from memory (don't trigger refresh here)
         const token = tokenStorage.accessToken;
         
         if (token) {
@@ -41,31 +43,42 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
+        // Skip retry for auth endpoints
+        if (originalRequest.url?.includes('/auth/')) {
+            return Promise.reject(error);
+        }
+
         // If error is 401 and we haven't already tried to refresh
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
             try {
+                console.log('API interceptor: Attempting token refresh due to 401');
+                
                 // Attempt to refresh token using credentials
                 const refreshed = await tokenStorage.refreshToken();
                 
                 if (refreshed && tokenStorage.accessToken) {
+                    console.log('API interceptor: Token refresh successful, retrying request');
                     // Retry original request with new token
                     originalRequest.headers['Authorization'] = `Bearer ${tokenStorage.accessToken}`;
                     return api(originalRequest);
+                } else {
+                    console.log('API interceptor: Token refresh failed');
+                    throw new Error('Token refresh failed');
                 }
             } catch (refreshError) {
-                // Clear login status and redirect to login
+                console.error('API interceptor: Token refresh error:', refreshError);
+                // Clear login status and let the error propagate
                 tokenStorage.clearLoginStatus();
-                window.location.href = '/login';
                 return Promise.reject(refreshError);
             }
         }
 
-        // For other errors or if refresh failed
+        // For other 401 errors or if refresh failed
         if (error.response?.status === 401) {
+            console.log('API interceptor: Clearing login status due to persistent 401');
             tokenStorage.clearLoginStatus();
-            window.location.href = '/login';
         }
 
         return Promise.reject(error);

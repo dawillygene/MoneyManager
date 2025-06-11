@@ -30,6 +30,7 @@ const Sidebar = () => {
     { path: '/budgets', icon: 'fas fa-chart-pie', label: 'Budgets' },
     { path: '/goals', icon: 'fas fa-bullseye', label: 'Goals' },
     { path: '/reports', icon: 'fas fa-chart-bar', label: 'Reports' },
+    { path: '/profile', icon: 'fas fa-user-cog', label: 'Profile Settings' },
   ];
 
   const isActive = (path) => location.pathname === path;

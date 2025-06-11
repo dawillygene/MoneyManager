@@ -111,8 +111,13 @@ class TokenStorage {
         }
 
         // If we have a valid token in memory, use it
-        if (this.accessToken && this.tokenExpiration && new Date().getTime() < this.tokenExpiration) {
-            return this.accessToken;
+        if (this.accessToken && this.tokenExpiration) {
+            const now = new Date().getTime();
+            const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+            
+            if (now < (this.tokenExpiration - bufferTime)) {
+                return this.accessToken;
+            }
         }
 
         // If no valid token in memory, check if we're logged in
@@ -125,6 +130,8 @@ class TokenStorage {
             const refreshSuccess = await this.refreshToken();
             return refreshSuccess ? this.accessToken : null;
         } catch (error) {
+            console.error('Token refresh failed:', error);
+            this.clearLoginStatus();
             return null;
         }
     }
@@ -176,11 +183,18 @@ class TokenStorage {
         this.isRefreshing = true;
 
         try {
+            // Create a fresh axios instance to avoid interceptor loops
             const refreshApi = axios.create({
                 baseURL: API_CONFIG.FULL_API_URL,
-                withCredentials: API_CONFIG.WITH_CREDENTIALS,
+                withCredentials: true,
+                timeout: 10000,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
             });
 
+            console.log('Attempting token refresh...');
+            
             // Make refresh request with empty JSON body to satisfy backend requirement
             const response = await refreshApi.post('/auth/refresh', {});
 
@@ -189,6 +203,8 @@ class TokenStorage {
             if (!accessToken) {
                 throw new Error('No access token received');
             }
+
+            console.log('Token refresh successful');
 
             // Store new access token in memory
             this.setAccessToken(accessToken);
@@ -201,6 +217,8 @@ class TokenStorage {
             return true;
 
         } catch (error) {
+            console.error('Token refresh failed:', error);
+            
             // Process failed queue
             this.failedQueue.forEach(({ reject }) => reject(error));
             this.failedQueue = [];
@@ -209,6 +227,7 @@ class TokenStorage {
 
             // If refresh fails with 401/403, clear login status
             if (error.response?.status === 401 || error.response?.status === 403) {
+                console.log('Refresh token expired or invalid, clearing login status');
                 this.clearLoginStatus();
             }
 
@@ -218,14 +237,7 @@ class TokenStorage {
 
     // Check if user is authenticated (for route protection)
     isAuthenticated() {
-        const hasLoginStatus = this.checkLoginStatus();
-
-        if (!hasLoginStatus) {
-            return false;
-        }
-
-        // If we have login status, we can get an access token
-        return true;
+        return this.checkLoginStatus();
     }
 
     // **ROUTE PROTECTION**: Ensure valid token for route access
@@ -237,20 +249,15 @@ class TokenStorage {
         // Store the route we're trying to access
         this.setLastRoute(route);
 
-        // If no token in memory or expiring soon (within 2 minutes), refresh
+        // If no token in memory or expiring soon (within 5 minutes), refresh
         const now = new Date().getTime();
-        const bufferTime = 2 * 60 * 1000; // 2 minutes
+        const bufferTime = 5 * 60 * 1000; // 5 minutes
 
         if (!this.accessToken || !this.tokenExpiration ||
             (this.tokenExpiration - now) < bufferTime) {
 
             const refreshSuccess = await this.refreshToken();
-
-            if (refreshSuccess) {
-                return true;
-            } else {
-                return false;
-            }
+            return refreshSuccess;
         }
 
         return true;
@@ -258,7 +265,21 @@ class TokenStorage {
 
     // Auto-refresh token before it expires (call this periodically)
     async ensureValidToken() {
-        return this.ensureValidTokenForRoute(this.getLastRoute());
+        // Don't call ensureValidTokenForRoute to avoid circular calls
+        if (!this.checkLoginStatus()) {
+            return false;
+        }
+
+        const now = new Date().getTime();
+        const bufferTime = 5 * 60 * 1000; // 5 minutes
+
+        if (!this.accessToken || !this.tokenExpiration ||
+            (this.tokenExpiration - now) < bufferTime) {
+
+            return await this.refreshToken();
+        }
+
+        return true;
     }
 
     // Handle logout
@@ -271,20 +292,19 @@ class TokenStorage {
                 // Create axios instance for logout with proper headers
                 const logoutApi = axios.create({
                     baseURL: API_CONFIG.FULL_API_URL,
-                    withCredentials: API_CONFIG.WITH_CREDENTIALS,
+                    withCredentials: true,
+                    timeout: 10000,
                     headers: {
                         'Authorization': `Bearer ${currentToken}`,
                         'Content-Type': 'application/json'
                     }
                 });
 
-                const response = await logoutApi.post('/auth/logout');
-                
-                if (response.status === 200) {
-                }
+                await logoutApi.post('/auth/logout');
             } 
             
         } catch (error) {
+            console.error('Logout request failed:', error);
         } finally {
             // Always clear local state regardless of server response
             this.clearLoginStatus();

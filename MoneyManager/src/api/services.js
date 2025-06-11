@@ -1,5 +1,5 @@
 import api from './apiConfig';
-import { BUDGET_ENDPOINTS, TRANSACTION_ENDPOINTS, GOAL_ENDPOINTS, REPORT_ENDPOINTS } from './endpoints';
+import { BUDGET_ENDPOINTS, TRANSACTION_ENDPOINTS, GOAL_ENDPOINTS, REPORT_ENDPOINTS, DASHBOARD_ENDPOINTS, USER_ENDPOINTS } from './endpoints';
 
 // Budget Service
 export class BudgetService {
@@ -391,33 +391,403 @@ export class GoalService {
 
 // Report Service
 export class ReportService {
-    async getMonthlyReport(year, month) {
-        const response = await api.get(REPORT_ENDPOINTS.MONTHLY, {
-            params: { year, month }
+    // Core report endpoints
+    async getExpenseAnalysis(params = {}) {
+        const response = await api.get(REPORT_ENDPOINTS.EXPENSE_ANALYSIS, { params });
+        return response.data;
+    }
+
+    async getIncomeVsExpenses(params = {}) {
+        const response = await api.get(REPORT_ENDPOINTS.INCOME_VS_EXPENSES, { params });
+        return response.data;
+    }
+
+    async getSavingsReport(params = {}) {
+        const response = await api.get(REPORT_ENDPOINTS.SAVINGS_REPORT, { params });
+        return response.data;
+    }
+
+    async getBudgetPerformance(params = {}) {
+        const response = await api.get(REPORT_ENDPOINTS.BUDGET_PERFORMANCE, { params });
+        return response.data;
+    }
+
+    // Report management
+    async getReportsList(params = {}) {
+        const response = await api.get(REPORT_ENDPOINTS.LIST, { params });
+        return response.data;
+    }
+
+    async generateReport(reportData) {
+        const response = await api.post(REPORT_ENDPOINTS.GENERATE, reportData);
+        return response.data;
+    }
+
+    async getReportStatus(reportId) {
+        const response = await api.get(REPORT_ENDPOINTS.STATUS(reportId));
+        return response.data;
+    }
+
+    async downloadReport(reportId, format = null) {
+        const params = format ? { format } : {};
+        const response = await api.get(REPORT_ENDPOINTS.DOWNLOAD(reportId), {
+            params,
+            responseType: 'blob'
         });
         return response.data;
     }
 
-    async getYearlyReport(year) {
-        const response = await api.get(REPORT_ENDPOINTS.YEARLY, {
-            params: { year }
+    async previewReport(reportId) {
+        const response = await api.get(REPORT_ENDPOINTS.PREVIEW(reportId));
+        return response.data;
+    }
+
+    async deleteReport(reportId) {
+        const response = await api.delete(REPORT_ENDPOINTS.DELETE(reportId));
+        return response.data;
+    }
+
+    // Advanced analytics
+    async getFinancialHealth(params = {}) {
+        const response = await api.get(REPORT_ENDPOINTS.FINANCIAL_HEALTH, { params });
+        return response.data;
+    }
+
+    async getCashFlow(params = {}) {
+        const response = await api.get(REPORT_ENDPOINTS.CASH_FLOW, { params });
+        return response.data;
+    }
+
+    // Templates and customization
+    async getTemplates() {
+        const response = await api.get(REPORT_ENDPOINTS.TEMPLATES);
+        return response.data;
+    }
+
+    async exportReport(exportData) {
+        const response = await api.post(REPORT_ENDPOINTS.EXPORT, exportData, {
+            responseType: 'blob'
         });
         return response.data;
     }
 
-    async getCustomReport(startDate, endDate) {
-        const response = await api.get(REPORT_ENDPOINTS.CUSTOM, {
-            params: { startDate, endDate }
+    // Helper methods for time periods
+    getThisMonthParams() {
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        return {
+            period: 'this-month',
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+        };
+    }
+
+    getLastMonthParams() {
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        
+        return {
+            period: 'last-month',
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+        };
+    }
+
+    getThisYearParams() {
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), 0, 1);
+        const endDate = new Date(now.getFullYear(), 11, 31);
+        
+        return {
+            period: 'this-year',
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+        };
+    }
+
+    getCustomRangeParams(startDate, endDate) {
+        return {
+            period: 'custom',
+            startDate,
+            endDate
+        };
+    }
+}
+
+// Dashboard Service
+export class DashboardService {
+    // Core dashboard data
+    async getOverview(params = {}) {
+        const response = await api.get(DASHBOARD_ENDPOINTS.OVERVIEW, { params });
+        return response.data;
+    }
+
+    async getExpenseCategories(params = {}) {
+        const response = await api.get(DASHBOARD_ENDPOINTS.EXPENSE_CATEGORIES, { params });
+        return response.data;
+    }
+
+    async getCashFlow(params = {}) {
+        const response = await api.get(DASHBOARD_ENDPOINTS.CASH_FLOW, { params });
+        return response.data;
+    }
+
+    async getBudgetProgress(params = {}) {
+        const response = await api.get(DASHBOARD_ENDPOINTS.BUDGET_PROGRESS, { params });
+        return response.data;
+    }
+
+    async getRecentTransactions(params = {}) {
+        const response = await api.get(DASHBOARD_ENDPOINTS.RECENT_TRANSACTIONS, { params });
+        return response.data;
+    }
+
+    async getFinancialSummary(params = {}) {
+        const response = await api.get(DASHBOARD_ENDPOINTS.FINANCIAL_SUMMARY, { params });
+        return response.data;
+    }
+
+    // Widget endpoints
+    async getBalanceCard() {
+        const response = await api.get(DASHBOARD_ENDPOINTS.BALANCE_CARD);
+        return response.data;
+    }
+
+    async getIncomeCard() {
+        const response = await api.get(DASHBOARD_ENDPOINTS.INCOME_CARD);
+        return response.data;
+    }
+
+    async getExpensesCard() {
+        const response = await api.get(DASHBOARD_ENDPOINTS.EXPENSES_CARD);
+        return response.data;
+    }
+
+    async getSavingsCard() {
+        const response = await api.get(DASHBOARD_ENDPOINTS.SAVINGS_CARD);
+        return response.data;
+    }
+
+    // Export functionality
+    async exportDashboard(exportData) {
+        const response = await api.post(DASHBOARD_ENDPOINTS.EXPORT, exportData, {
+            responseType: 'blob'
         });
         return response.data;
     }
 
-    async exportReport(type, params) {
-        const response = await api.get(REPORT_ENDPOINTS.EXPORT, {
-            params: { type, ...params },
-            responseType: 'blob' 
+    // Helper methods for dashboard periods
+    getCurrentMonthParams() {
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        return {
+            period: 'current-month',
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+        };
+    }
+
+    getLastMonthParams() {
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        
+        return {
+            period: 'last-month',
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+        };
+    }
+
+    getCurrentYearParams() {
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), 0, 1);
+        const endDate = new Date(now.getFullYear(), 11, 31);
+        
+        return {
+            period: 'current-year',
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0]
+        };
+    }
+
+    getCustomRangeParams(startDate, endDate) {
+        return {
+            period: 'custom',
+            startDate,
+            endDate
+        };
+    }
+}
+
+// User Service
+export class UserService {
+    // Profile management
+    async getProfile() {
+        const response = await api.get(USER_ENDPOINTS.PROFILE);
+        return response.data;
+    }
+
+    async updateProfile(profileData) {
+        const response = await api.put(USER_ENDPOINTS.UPDATE_PROFILE, profileData);
+        return response.data;
+    }
+
+    async deleteAccount(confirmationData = {}) {
+        const response = await api.delete(USER_ENDPOINTS.DELETE_ACCOUNT, {
+            data: confirmationData
         });
         return response.data;
+    }
+
+    // Password management
+    async changePassword(passwordData) {
+        const response = await api.put(USER_ENDPOINTS.CHANGE_PASSWORD, passwordData);
+        return response.data;
+    }
+
+    // User preferences
+    async getPreferences() {
+        const response = await api.get(USER_ENDPOINTS.PREFERENCES);
+        return response.data;
+    }
+
+    async updatePreferences(preferencesData) {
+        const response = await api.put(USER_ENDPOINTS.UPDATE_PREFERENCES, preferencesData);
+        return response.data;
+    }
+
+    // Security and session management
+    async getSessions() {
+        const response = await api.get(USER_ENDPOINTS.SESSIONS);
+        return response.data;
+    }
+
+    async revokeSession(sessionId) {
+        const response = await api.delete(USER_ENDPOINTS.REVOKE_SESSION(sessionId));
+        return response.data;
+    }
+
+    async revokeAllSessions() {
+        const response = await api.delete(USER_ENDPOINTS.REVOKE_ALL_SESSIONS);
+        return response.data;
+    }
+
+    // Two-factor authentication
+    async enable2FA(verificationData) {
+        const response = await api.post(USER_ENDPOINTS.ENABLE_2FA, verificationData);
+        return response.data;
+    }
+
+    async disable2FA(verificationData) {
+        const response = await api.post(USER_ENDPOINTS.DISABLE_2FA, verificationData);
+        return response.data;
+    }
+
+    async verify2FA(verificationData) {
+        const response = await api.post(USER_ENDPOINTS.VERIFY_2FA, verificationData);
+        return response.data;
+    }
+
+    // Avatar/Profile picture management
+    async uploadAvatar(avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        
+        const response = await api.post(USER_ENDPOINTS.UPLOAD_AVATAR, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    }
+
+    async deleteAvatar() {
+        const response = await api.delete(USER_ENDPOINTS.DELETE_AVATAR);
+        return response.data;
+    }
+
+    // Email verification
+    async verifyEmail(verificationToken) {
+        const response = await api.post(USER_ENDPOINTS.VERIFY_EMAIL, {
+            token: verificationToken
+        });
+        return response.data;
+    }
+
+    async resendVerification() {
+        const response = await api.post(USER_ENDPOINTS.RESEND_VERIFICATION);
+        return response.data;
+    }
+
+    // Privacy and data management
+    async exportUserData(exportOptions = {}) {
+        const response = await api.post(USER_ENDPOINTS.EXPORT_DATA, exportOptions, {
+            responseType: 'blob'
+        });
+        return response.data;
+    }
+
+    async getPrivacySettings() {
+        const response = await api.get(USER_ENDPOINTS.PRIVACY_SETTINGS);
+        return response.data;
+    }
+
+    async updatePrivacySettings(privacyData) {
+        const response = await api.put(USER_ENDPOINTS.PRIVACY_SETTINGS, privacyData);
+        return response.data;
+    }
+
+    // Activity and audit logs
+    async getActivityLog(params = {}) {
+        const response = await api.get(USER_ENDPOINTS.ACTIVITY_LOG, { params });
+        return response.data;
+    }
+
+    async getLoginHistory(params = {}) {
+        const response = await api.get(USER_ENDPOINTS.LOGIN_HISTORY, { params });
+        return response.data;
+    }
+
+    // Helper methods for common profile operations
+    async updateBasicInfo(name, email) {
+        return this.updateProfile({ name, email });
+    }
+
+    async updateContactInfo(phone, address) {
+        return this.updateProfile({ phone, address });
+    }
+
+    async updateFinancialInfo(currency, timezone) {
+        return this.updatePreferences({ currency, timezone });
+    }
+
+    // Validation helpers
+    validatePasswordStrength(password) {
+        const minLength = 8;
+        const hasUpperCase = /[A-Z]/.test(password);
+        const hasLowerCase = /[a-z]/.test(password);
+        const hasNumbers = /\d/.test(password);
+        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+        return {
+            valid: password.length >= minLength && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar,
+            length: password.length >= minLength,
+            hasUpperCase,
+            hasLowerCase,
+            hasNumbers,
+            hasSpecialChar
+        };
+    }
+
+    validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
     }
 }
 
@@ -426,3 +796,5 @@ export const budgetService = new BudgetService();
 export const transactionService = new TransactionService();
 export const goalService = new GoalService();
 export const reportService = new ReportService();
+export const dashboardService = new DashboardService();
+export const userService = new UserService();

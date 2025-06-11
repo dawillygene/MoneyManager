@@ -8,9 +8,43 @@ export const AUTH_ENDPOINTS = {
 };
 
 export const USER_ENDPOINTS = {
+    // Profile management
     PROFILE: '/user/profile',
     UPDATE_PROFILE: '/user/update',
     DELETE_ACCOUNT: '/user/delete',
+    
+    // Password management
+    CHANGE_PASSWORD: '/user/change-password',
+    
+    // Profile settings
+    PREFERENCES: '/user/preferences',
+    UPDATE_PREFERENCES: '/user/preferences',
+    
+    // Security settings
+    SESSIONS: '/user/sessions',
+    REVOKE_SESSION: (sessionId) => `/user/sessions/${sessionId}/revoke`,
+    REVOKE_ALL_SESSIONS: '/user/sessions/revoke-all',
+    
+    // Two-factor authentication
+    ENABLE_2FA: '/user/2fa/enable',
+    DISABLE_2FA: '/user/2fa/disable',
+    VERIFY_2FA: '/user/2fa/verify',
+    
+    // Profile picture/avatar
+    UPLOAD_AVATAR: '/user/avatar',
+    DELETE_AVATAR: '/user/avatar',
+    
+    // Account verification
+    VERIFY_EMAIL: '/user/verify-email',
+    RESEND_VERIFICATION: '/user/resend-verification',
+    
+    // Data export/privacy
+    EXPORT_DATA: '/user/export-data',
+    PRIVACY_SETTINGS: '/user/privacy',
+    
+    // Activity logs
+    ACTIVITY_LOG: '/user/activity',
+    LOGIN_HISTORY: '/user/login-history',
 };
 
 export const BUDGET_ENDPOINTS = {
@@ -63,12 +97,47 @@ export const GOAL_ENDPOINTS = {
 };
 
 export const REPORT_ENDPOINTS = {
-    MONTHLY: '/reports/monthly',
-    YEARLY: '/reports/yearly',
-    CUSTOM: '/reports/custom',
-    EXPORT: '/reports/export',
+    // Core reports
+    EXPENSE_ANALYSIS: '/reports/expense-analysis',
+    INCOME_VS_EXPENSES: '/reports/income-vs-expenses',
+    SAVINGS_REPORT: '/reports/savings-report',
+    BUDGET_PERFORMANCE: '/reports/budget-performance',
+    
+    // Report management
+    LIST: '/reports/list',
+    GENERATE: '/reports/generate',
+    STATUS: (id) => `/reports/status/${id}`,
+    DOWNLOAD: (id) => `/reports/download/${id}`,
+    PREVIEW: (id) => `/reports/preview/${id}`,
+    DELETE: (id) => `/reports/${id}`,
+    
+    // Advanced analytics
+    FINANCIAL_HEALTH: '/reports/financial-health',
+    CASH_FLOW: '/reports/cash-flow',
+    
+    // Templates and export
+    TEMPLATES: '/reports/templates',
+    EXPORT: '/reports/export'
 };
 
+export const DASHBOARD_ENDPOINTS = {
+    // Core dashboard
+    OVERVIEW: '/dashboard/overview',
+    EXPENSE_CATEGORIES: '/dashboard/expense-categories',
+    CASH_FLOW: '/dashboard/cash-flow',
+    BUDGET_PROGRESS: '/dashboard/budget-progress',
+    RECENT_TRANSACTIONS: '/dashboard/recent-transactions',
+    FINANCIAL_SUMMARY: '/dashboard/financial-summary',
+    
+    // Widgets
+    BALANCE_CARD: '/dashboard/widgets/balance-card',
+    INCOME_CARD: '/dashboard/widgets/income-card',
+    EXPENSES_CARD: '/dashboard/widgets/expenses-card',
+    SAVINGS_CARD: '/dashboard/widgets/savings-card',
+    
+    // Export
+    EXPORT: '/dashboard/export'
+};
 
 export const PUBLIC_ENDPOINTS = [
     AUTH_ENDPOINTS.LOGIN,

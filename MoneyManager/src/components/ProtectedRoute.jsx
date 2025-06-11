@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../api/authService';
 import { tokenStorage } from '../api/tokenStorage';
-import API_CONFIG from '../api/config';
 
 const ProtectedRoute = ({ children }) => {
     const navigate = useNavigate();
@@ -11,66 +10,47 @@ const ProtectedRoute = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const interceptRouteAccess = async () => {
+        const checkAuthentication = async () => {
             try {
                 const currentRoute = location.pathname;
                 
-                try {
-                    const response = await fetch(`${API_CONFIG.FULL_API_URL}/auth/verify`, {
-                        method: 'GET',
-                        credentials: 'include'
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        
-                        if (data.accessToken) {
-                            tokenStorage.setAccessToken(data.accessToken);
-                            tokenStorage.setLoginStatus();
-                            
-                            if (data.user) {
-                                const setCookie = (name, value, maxAge = null) => {
-                                    let cookieString = `${name}=${value}; path=/; SameSite=Lax`;
-                                    if (maxAge) {
-                                        cookieString += `; max-age=${maxAge}`;
-                                    }
-                                    document.cookie = cookieString;
-                                };
-                                
-                                setCookie('user', JSON.stringify({
-                                    name: data.user.name,
-                                    email: data.user.email
-                                }), 604800);
-                            }
-                        }
-                        
-                        setIsAuthenticated(true);
-                        setIsLoading(false);
-                        return;
-                    } else {
-                        const errorData = await response.json();
-                    }
-                } catch (verifyError) {
-                }
-
-                const hasLoginStatus = authService.isAuthenticated();
+                const hasLoginStatus = tokenStorage.checkLoginStatus();
                 
                 if (!hasLoginStatus) {
+                    console.log('ProtectedRoute: No login status found, redirecting to login');
                     tokenStorage.setLastRoute(currentRoute);
                     setIsAuthenticated(false);
-                } else {
-                    setIsAuthenticated(true);
+                    setIsLoading(false);
+                    return;
                 }
+
+                console.log('ProtectedRoute: Login status found, ensuring valid token');
+                
+                // Try to get a valid access token (this will handle refresh if needed)
+                const token = await tokenStorage.getAccessTokenForRoute(currentRoute);
+                
+                if (!token) {
+                    console.log('ProtectedRoute: Failed to get access token, clearing login status');
+                    tokenStorage.clearLoginStatus();
+                    setIsAuthenticated(false);
+                    setIsLoading(false);
+                    return;
+                }
+
+                console.log('ProtectedRoute: Valid token obtained, user is authenticated');
+                setIsAuthenticated(true);
                 
             } catch (error) {
+                console.error('ProtectedRoute: Authentication check failed:', error);
                 tokenStorage.setLastRoute(location.pathname);
+                tokenStorage.clearLoginStatus();
                 setIsAuthenticated(false);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        interceptRouteAccess();
+        checkAuthentication();
     }, [location.pathname]);
 
     useEffect(() => {

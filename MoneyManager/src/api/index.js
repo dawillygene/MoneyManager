@@ -6,6 +6,8 @@ export {
     budgetService, 
     transactionService, 
     goalService, 
-    reportService 
+    reportService,
+    dashboardService,
+    userService
 } from './services';
 export * from './endpoints';

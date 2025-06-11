@@ -7,6 +7,7 @@ import Transaction from "./pages/Transaction"
 import Budgets from "./pages/Budgets"
 import Goals from "./pages/Goals"
 import Reports from "./pages/Reports"
+import Profile from "./pages/Profile"
 import RegistrationPage from "./pages/RegistrationPage"
 import LoginPage from "./pages/LoginPage"
 import AuthLayout from "./layouts/AuthLayout"
@@ -39,6 +40,7 @@ function App() {
                       <Route path="/budgets" element={<Budgets />} />
                       <Route path="/goals" element={<Goals />} />
                       <Route path="/reports" element={<Reports />} />
+                      <Route path="/profile" element={<Profile />} />
                     </Routes>
                   </MainContent>
                 </div>
