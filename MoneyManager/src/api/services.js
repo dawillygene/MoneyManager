@@ -35,11 +35,12 @@ export class BudgetService {
         return response.data;
     }
 
-    // Advanced budget operations
+    //
     async getSummary(queryParams = {}) {
         const response = await api.get(BUDGET_ENDPOINTS.SUMMARY, {
             params: queryParams
         });
+        console.log('Budget Summary Response:', response.data);
         return response.data;
     }
 

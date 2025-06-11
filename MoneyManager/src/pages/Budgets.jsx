@@ -258,34 +258,39 @@ const Budgets = () => {
             <div className="border-r border-gray-200 pr-4">
               <h3 className="text-sm text-gray-500 mb-1">Total Budget</h3>
               <p className="text-2xl font-bold navy-text">
-                {formatCurrency(summary.totals?.budgetAmount || 0)}
+                {formatCurrency(summary.totalBudgetAmount || 0)}
               </p>
               <div className="mt-2 text-xs">
                 <span className="text-blue-500">
                   <i className="fas fa-chart-line mr-1"></i>
-                  {summary.counts?.totalBudgets || 0} budgets
+                  {summary.totalBudgets || 0} total, {summary.activeBudgets || 0} active
                 </span>
               </div>
             </div>
             <div className="md:border-r border-gray-200 pr-4 md:px-4">
               <h3 className="text-sm text-gray-500 mb-1">Spent So Far</h3>
               <p className="text-2xl font-bold navy-text">
-                {formatCurrency(summary.totals?.spent || 0)}
+                {formatCurrency(summary.totalSpent || 0)}
               </p>
               <div className="mt-2 text-xs">
                 <span className="text-green-500">
-                  {Math.round(summary.totals?.progress || 0)}% of total budget
+                  {Math.round(((summary.totalSpent || 0) / (summary.totalBudgetAmount || 1)) * 100)}% of total budget
                 </span>
               </div>
             </div>
             <div className="md:px-4">
               <h3 className="text-sm text-gray-500 mb-1">Remaining</h3>
               <p className="text-2xl font-bold navy-text">
-                {formatCurrency(summary.totals?.remaining || 0)}
+                {formatCurrency(summary.totalRemaining || 0)}
               </p>
               <div className="mt-2 text-xs">
-                <span className="text-gray-500">
-                  {summary.counts?.overBudgetCount || 0} over budget
+                <span className={`${summary.overBudgetCount > 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                  {summary.overBudgetCount || 0} over budget
+                  {summary.alertTriggeredCount > 0 && (
+                    <span className="ml-2 text-orange-500">
+                      • {summary.alertTriggeredCount} alerts
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
@@ -293,9 +298,19 @@ const Budgets = () => {
           <div className="mt-4">
             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-blue-500" 
-                style={{ width: `${Math.min(summary.totals?.progress || 0, 100)}%` }}
+                className={`h-full ${
+                  summary.overBudgetCount > 0 
+                    ? 'bg-red-500' 
+                    : ((summary.totalSpent || 0) / (summary.totalBudgetAmount || 1)) > 0.8 
+                      ? 'bg-orange-500' 
+                      : 'bg-blue-500'
+                }`}
+                style={{ width: `${Math.min(((summary.totalSpent || 0) / (summary.totalBudgetAmount || 1)) * 100, 100)}%` }}
               ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Period: {summary.dateRange?.startDate} to {summary.dateRange?.endDate}</span>
+              <span>{summary.categoryBreakdown?.length || 0} categories</span>
             </div>
           </div>
         </div>
