@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AddTransactionForm from '../components/AddTransactionForm';
+import EditTransactionForm from '../components/EditTransactionForm';
 import { transactionService } from '../api';
 
 const categoryOptions = [
@@ -16,6 +17,8 @@ const categoryOptions = [
 
 const Transaction = () => {
   const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,13 +28,21 @@ const Transaction = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [dateRange, setDateRange] = useState("this-month");
   const [search, setSearch] = useState("");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
 
-  // Fetch transactions from API
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [transactionsPerPage] = useState(10);
+
+  // Fetch transactions from API with filters
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const data = await transactionService.getAll();
+      
+      const filters = buildFilters();
+      const data = await transactionService.getFiltered(filters);
       setTransactions(data);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
@@ -41,59 +52,97 @@ const Transaction = () => {
     }
   };
 
-  // Load transactions on component mount
+  // Build filter object for API
+  const buildFilters = () => {
+    const filters = {};
+    
+    if (typeFilter !== "all") {
+      filters.type = typeFilter;
+    }
+    
+    if (categoryFilter !== "all") {
+      filters.category = categoryFilter;
+    }
+    
+    // Handle date filtering
+    const now = new Date();
+    if (dateRange === "this-month") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      filters.startDate = startOfMonth.toISOString().split('T')[0];
+      filters.endDate = endOfMonth.toISOString().split('T')[0];
+    } else if (dateRange === "last-month") {
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      filters.startDate = startOfLastMonth.toISOString().split('T')[0];
+      filters.endDate = endOfLastMonth.toISOString().split('T')[0];
+    } else if (dateRange === "last-3-months") {
+      const start3MonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      filters.startDate = start3MonthsAgo.toISOString().split('T')[0];
+      filters.endDate = endOfThisMonth.toISOString().split('T')[0];
+    } else if (dateRange === "custom" && customStartDate && customEndDate) {
+      filters.startDate = customStartDate;
+      filters.endDate = customEndDate;
+    }
+    
+    return filters;
+  };
+
+  // Load transactions on component mount and when filters change
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [typeFilter, categoryFilter, dateRange, customStartDate, customEndDate]);
 
   const handleAddTransaction = (data) => {
     setTransactions([data, ...transactions]);
     setShowAdd(false);
   };
 
-  // --- Filtering logic ---
-  const now = new Date();
-  const getStartEndDates = () => {
-    let start, end = new Date();
-    if (dateRange === "this-month") {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    } else if (dateRange === "last-month") {
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      start = lastMonth;
-      end = new Date(now.getFullYear(), now.getMonth(), 0);
-    } else if (dateRange === "last-3-months") {
-      start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    } else {
-      start = new Date(0);
-      end = new Date(9999, 11, 31);
-    }
-    return [start, end];
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction);
+    setShowEdit(true);
   };
 
-  const [startDate, endDate] = getStartEndDates();
+  const handleUpdateTransaction = (updatedTransaction) => {
+    setTransactions(transactions.map(tx => 
+      tx.id === updatedTransaction.id ? updatedTransaction : tx
+    ));
+    setShowEdit(false);
+    setEditingTransaction(null);
+  };
 
+  const handleDeleteTransaction = async (transactionId) => {
+    if (!window.confirm('Are you sure you want to delete this transaction?')) {
+      return;
+    }
+
+    try {
+      await transactionService.delete(transactionId);
+      setTransactions(transactions.filter(tx => tx.id !== transactionId));
+    } catch (error) {
+      console.error('Failed to delete transaction:', error);
+      setError('Failed to delete transaction. Please try again.');
+    }
+  };
+
+  // Filter transactions locally for search
   const filteredTransactions = transactions.filter(tx => {
-    // Type filter
-    if (typeFilter !== "all" && tx.type.toLowerCase() !== typeFilter) return false;
-    // Category filter
-    if (categoryFilter !== "all" && tx.category.toLowerCase() !== categoryFilter) return false;
-    // Date range filter (assumes tx.date is ISO string or Date)
-    const txDate = new Date(tx.date);
-    if (txDate < startDate || txDate > endDate) return false;
-    // Search filter (case insensitive)
-    if (
-      search &&
-      !(
+    if (search) {
+      return (
         tx.description.toLowerCase().includes(search.toLowerCase()) ||
-        tx.category.toLowerCase().includes(search.toLowerCase())
-      )
-    ) {
-      return false;
+        tx.category.toLowerCase().includes(search.toLowerCase()) ||
+        tx.notes?.toLowerCase().includes(search.toLowerCase())
+      );
     }
     return true;
   });
+
+  // Pagination logic
+  const indexOfLastTransaction = currentPage * transactionsPerPage;
+  const indexOfFirstTransaction = indexOfLastTransaction - transactionsPerPage;
+  const currentTransactions = filteredTransactions.slice(indexOfFirstTransaction, indexOfLastTransaction);
+  const totalPages = Math.ceil(filteredTransactions.length / transactionsPerPage);
 
   return (
     <>
@@ -166,6 +215,30 @@ const Transaction = () => {
     </div>
   </div>
 
+  {/* Custom Date Range Inputs */}
+  {dateRange === "custom" && (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">Start Date</label>
+        <input
+          type="date"
+          className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={customStartDate}
+          onChange={e => setCustomStartDate(e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm text-gray-600 mb-1">End Date</label>
+        <input
+          type="date"
+          className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={customEndDate}
+          onChange={e => setCustomEndDate(e.target.value)}
+        />
+      </div>
+    </div>
+  )}
+
   {/* Error message */}
   {error && (
     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
@@ -223,7 +296,7 @@ const Transaction = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.map((tx, idx) => (
+              {currentTransactions.map((tx, idx) => (
                 <tr key={tx.id || idx} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="py-3 px-4 text-sm">{new Date(tx.date).toLocaleDateString()}</td>
                   <td className="py-3 px-4">
@@ -242,13 +315,16 @@ const Transaction = () => {
                   </td>
                   <td className="py-3 px-4 text-sm">{tx.category}</td>
                   <td className="py-3 px-4 text-sm text-right">
-                    {tx.type === 'income' || tx.type === 'Income' ? '+' : '-'}${Math.abs(tx.amount).toFixed(2)}
+                    {tx.type === 'income' || tx.type === 'Income' ? '+' : '-'}Tsh {Math.abs(tx.amount).toFixed(2)}
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <button className="text-blue-500 hover:text-blue-700 mx-1">
+                    <button 
+                      className="text-blue-500 hover:text-blue-700 mx-1"
+                      onClick={() => handleEditTransaction(tx)}
+                    >
                       <i className="fas fa-edit"></i>
                     </button>
-                    <button className="text-red-500 hover:text-red-700 mx-1">
+                    <button className="text-red-500 hover:text-red-700 mx-1" onClick={() => handleDeleteTransaction(tx.id)}>
                       <i className="fas fa-trash"></i>
                     </button>
                   </td>
@@ -262,22 +338,34 @@ const Transaction = () => {
       {filteredTransactions.length > 0 && (
         <div className="py-3 px-4 border-t border-gray-200 flex items-center justify-between">
           <div className="text-sm text-gray-500">
-            Showing {filteredTransactions.length} of {transactions.length} transactions
+            Showing {currentTransactions.length} of {filteredTransactions.length} transactions
           </div>
           <div className="flex space-x-1">
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
+            <button 
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
               Previous
             </button>
-            <button className="px-3 py-1 navy-bg text-white rounded-md text-sm">
-              1
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
-              2
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
-              3
-            </button>
-            <button className="px-3 py-1 border border-gray-300 rounded-md text-sm">
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i}
+                className={`px-3 py-1 rounded-md text-sm ${
+                  currentPage === i + 1
+                    ? 'navy-bg text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button 
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
               Next
             </button>
           </div>
@@ -302,6 +390,28 @@ const Transaction = () => {
       onSubmit={handleAddTransaction}
       onClose={() => setShowAdd(false)}
       fetchTransactions={fetchTransactions}
+    />
+  </div>
+)}
+
+{showEdit && editingTransaction && (
+  <div 
+    className="modal-backdrop fixed inset-0 z-[9999] flex items-center justify-center"
+    onClick={(e) => {
+      // Close modal when clicking on backdrop, but not on the modal content
+      if (e.target === e.currentTarget) {
+        setShowEdit(false);
+        setEditingTransaction(null);
+      }
+    }}
+  >
+    <EditTransactionForm
+      transaction={editingTransaction}
+      onSubmit={handleUpdateTransaction}
+      onClose={() => {
+        setShowEdit(false);
+        setEditingTransaction(null);
+      }}
     />
   </div>
 )}

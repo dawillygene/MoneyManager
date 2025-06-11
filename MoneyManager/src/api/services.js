@@ -31,8 +31,10 @@ export class BudgetService {
 
 // Transaction Service
 export class TransactionService {
-    async getAll() {
-        const response = await api.get(TRANSACTION_ENDPOINTS.GET_ALL);
+    async getAll(queryParams = {}) {
+        const response = await api.get(TRANSACTION_ENDPOINTS.GET_ALL, {
+            params: queryParams
+        });
         return response.data;
     }
 
@@ -59,6 +61,62 @@ export class TransactionService {
     async getByBudget(budgetId) {
         const response = await api.get(TRANSACTION_ENDPOINTS.GET_BY_BUDGET(budgetId));
         return response.data;
+    }
+
+    // Filter transactions by type
+    async getByType(type) {
+        const response = await api.get(`/transactions/filter/type/${type}`);
+        return response.data;
+    }
+
+    // Filter transactions by category
+    async getByCategory(category) {
+        const encodedCategory = encodeURIComponent(category);
+        const response = await api.get(`/transactions/filter/category/${encodedCategory}`);
+        return response.data;
+    }
+
+    // Filter transactions by date range
+    async getByDateRange(startDate, endDate) {
+        const response = await api.get('/transactions/filter/date-range', {
+            params: { startDate, endDate }
+        });
+        return response.data;
+    }
+
+    // Get transaction statistics
+    async getStatistics() {
+        const response = await api.get('/transactions/statistics');
+        return response.data;
+    }
+
+    // Advanced filtering with multiple parameters
+    async getFiltered(filters = {}) {
+        const params = {};
+        
+        if (filters.type && filters.type !== 'all') {
+            params.type = filters.type;
+        }
+        if (filters.category && filters.category !== 'all') {
+            params.category = filters.category;
+        }
+        if (filters.startDate) {
+            params.startDate = filters.startDate;
+        }
+        if (filters.endDate) {
+            params.endDate = filters.endDate;
+        }
+        if (filters.year) {
+            params.year = filters.year;
+        }
+        if (filters.month) {
+            params.month = filters.month;
+        }
+        if (filters.limit) {
+            params.limit = filters.limit;
+        }
+
+        return this.getAll(params);
     }
 }
 
@@ -116,7 +174,7 @@ export class ReportService {
     async exportReport(type, params) {
         const response = await api.get(REPORT_ENDPOINTS.EXPORT, {
             params: { type, ...params },
-            responseType: 'blob' // For file downloads
+            responseType: 'blob' 
         });
         return response.data;
     }

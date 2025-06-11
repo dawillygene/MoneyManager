@@ -230,9 +230,45 @@ Delete specific budget.
 ### Transaction Endpoints
 
 #### GET /api/transactions
-Get all transactions for authenticated user.
+Get all transactions for authenticated user with optional filtering.
 
 **Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters (all optional):**
+- `type` - Filter by transaction type ("income" or "expense")
+- `category` - Filter by category name
+- `startDate` - Filter from this date (YYYY-MM-DD format)
+- `endDate` - Filter to this date (YYYY-MM-DD format)
+- `year` - Filter by specific year
+- `month` - Filter by specific month (1-12, requires year parameter)
+- `limit` - Limit number of results returned
+
+**Examples:**
+```
+GET /api/transactions - Get all transactions
+GET /api/transactions?type=expense - Get only expense transactions
+GET /api/transactions?category=Food - Get transactions in Food category
+GET /api/transactions?startDate=2025-01-01&endDate=2025-01-31 - Get January transactions
+GET /api/transactions?type=income&category=Salary&startDate=2025-01-01 - Combined filters
+GET /api/transactions?year=2025&month=6 - Get June 2025 transactions
+GET /api/transactions?limit=10 - Get latest 10 transactions
+```
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "amount": 50.00,
+    "description": "Grocery shopping",
+    "category": "Food & Dining",
+    "type": "expense",
+    "date": "2025-06-11",
+    "notes": "Weekly grocery shopping",
+    "userId": 1
+  }
+]
+```
 
 #### POST /api/transactions
 Create a new transaction.
@@ -251,17 +287,142 @@ Create a new transaction.
 }
 ```
 
+**Required Fields:**
+- `amount` (number) - Transaction amount
+- `description` (string) - Transaction description
+- `category` (string) - Transaction category
+- `type` (string) - Must be "income" or "expense"
+- `date` (string) - Date in YYYY-MM-DD format
+
+**Optional Fields:**
+- `notes` (string) - Additional notes
+
+**Response (201 Created):**
+```json
+{
+  "id": 1,
+  "amount": 50.00,
+  "description": "Grocery shopping",
+  "category": "Food & Dining",
+  "type": "expense",
+  "date": "2025-06-11",
+  "notes": "Weekly grocery shopping",
+  "userId": 1
+}
+```
+
 #### GET /api/transactions/{id}
 Get specific transaction by ID.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "id": 1,
+  "amount": 50.00,
+  "description": "Grocery shopping",
+  "category": "Food & Dining",
+  "type": "expense",
+  "date": "2025-06-11",
+  "notes": "Weekly grocery shopping",
+  "userId": 1
+}
+```
 
 #### PUT /api/transactions/{id}
 Update specific transaction.
 
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request:** Same format as POST request
+
+**Response:** Updated transaction object
+
 #### DELETE /api/transactions/{id}
 Delete specific transaction.
 
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response (200 OK):**
+```json
+{
+  "message": "Transaction deleted successfully"
+}
+```
+
 #### GET /api/transactions/budget/{budgetId}
 Get transactions for specific budget.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+#### GET /api/transactions/filter/type/{type}
+Get transactions filtered by type.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Path Parameters:**
+- `type` - Must be "income" or "expense"
+
+**Examples:**
+```
+GET /api/transactions/filter/type/income
+GET /api/transactions/filter/type/expense
+```
+
+#### GET /api/transactions/filter/category/{category}
+Get transactions filtered by category.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Path Parameters:**
+- `category` - Category name (URL encoded if contains spaces)
+
+**Examples:**
+```
+GET /api/transactions/filter/category/Food
+GET /api/transactions/filter/category/Food%20%26%20Dining
+```
+
+#### GET /api/transactions/filter/date-range
+Get transactions within a date range.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `startDate` (required) - Start date in YYYY-MM-DD format
+- `endDate` (required) - End date in YYYY-MM-DD format
+
+**Example:**
+```
+GET /api/transactions/filter/date-range?startDate=2025-01-01&endDate=2025-01-31
+```
+
+#### GET /api/transactions/statistics
+Get transaction statistics for the authenticated user.
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "totalTransactions": 25,
+  "incomeTransactions": 5,
+  "expenseTransactions": 20,
+  "recentTransactions": [
+    {
+      "id": 1,
+      "amount": 50.00,
+      "description": "Grocery shopping",
+      "category": "Food & Dining",
+      "type": "expense",
+      "date": "2025-06-11",
+      "notes": "Weekly grocery shopping",
+      "userId": 1
+    }
+  ]
+}
+```
 
 ### Goal Endpoints
 

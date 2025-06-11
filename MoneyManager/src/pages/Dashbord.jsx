@@ -31,7 +31,7 @@ const Dashbord = () => {
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm text-gray-500">Current Balance</p>
-          <h3 className="text-2xl font-bold navy-text mt-1">$12,750.85</h3>
+          <h3 className="text-2xl font-bold navy-text mt-1">Tsh 12,750,850</h3>
           <p className="text-xs text-green-500 flex items-center mt-2">
             <i className="fas fa-arrow-up mr-1"></i> 8.2% from last month
           </p>
@@ -49,7 +49,7 @@ const Dashbord = () => {
       <div className="flex justify-between items-start">
         <div>
           <p className="text-sm text-gray-500">Monthly Income</p>
-          <h3 className="text-2xl font-bold navy-text mt-1">$5,240.00</h3>
+          <h3 className="text-2xl font-bold navy-text mt-1">Tsh 5,240,000</h3>
           <p className="text-xs text-green-500 flex items-center mt-2">
             <i className="fas fa-arrow-up mr-1"></i> 3.1% from last month
           </p>
