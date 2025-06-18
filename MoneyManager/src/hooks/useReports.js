@@ -29,7 +29,7 @@ export const useReports = () => {
     }
   };
 
-  const getReportsList = async (params = {}) => {
+  const getReportsList = useCallback(async (params = {}) => {
     setLoading(true);
     setError(null);
     try {
@@ -38,17 +38,55 @@ export const useReports = () => {
         throw new Error('Authentication required');
       }
       
-      const result = await reportService.getReportsList(params);
-      setReports(result.reports || []);
-      return result;
+      console.log('Fetching reports list...');
+      
+      try {
+        const result = await reportService.getReportsList(params);
+        console.log('Reports API response received, count:', result?.reports?.length || 0);
+        
+        // Handle different response formats
+        let reportsList = [];
+        if (result && Array.isArray(result)) {
+          reportsList = result;
+        } else if (result && result.reports && Array.isArray(result.reports)) {
+          reportsList = result.reports;
+        } else if (result && result.data && Array.isArray(result.data)) {
+          reportsList = result.data;
+        } else {
+          console.warn('Unexpected reports API response format:', result);
+        }
+        
+        setReports(reportsList);
+        return result;
+        
+      } catch (apiError) {
+        console.error('API Error:', apiError);
+        
+        // If it's a 404 (endpoint not found), provide helpful message
+        if (apiError.response?.status === 404) {
+          setError('Reports list endpoint not implemented yet (/api/reports/list)');
+          console.warn('Reports list API endpoint not found. Using empty list.');
+        } else if (apiError.response?.status === 401) {
+          setError('Authentication required. Please log in again.');
+        } else if (apiError.response?.status === 403) {
+          setError('Access denied. You may not have permission to view reports.');
+        } else {
+          setError(apiError.message || 'Failed to fetch reports from server');
+        }
+        
+        setReports([]);
+        return { reports: [] };
+      }
+      
     } catch (error) {
       console.error('Reports list error:', error);
       setError(error.message || 'Failed to fetch reports');
-      throw error;
+      setReports([]);
+      return { reports: [] };
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array since this function doesn't depend on any props/state
 
   const deleteReport = async (reportId) => {
     setLoading(true);
@@ -569,7 +607,9 @@ export const useReportGeneration = () => {
       updateReportProgress(reportId, 25, 'Collecting data...');
 
       // Generate the report
+      console.log('Calling backend generateReport API...');
       const result = await reportService.generateReport(reportData);
+      console.log('Backend generateReport response:', result);
       
       updateReportProgress(reportId, 75, 'Processing report...');
 

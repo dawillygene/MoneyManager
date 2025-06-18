@@ -75,10 +75,38 @@ Enhancing the Money Manager reports functionality according to the API documenta
 - ✅ Create test component for validation
 - ✅ Create console test script
 - ✅ Prepare comprehensive documentation
+- ✅ Add debugging capabilities to reports list
+- ✅ Add refresh and test data functions
+- 🔄 **INVESTIGATING: Reports list not loading from API**
+  - Added extensive debugging and error handling
+  - Added manual refresh capability
+  - Added test data functions for development
+  - Issue appears to be with `/api/reports/list` endpoint
+- ✅ **FIXED: Infinite loop in reports fetching**
+  - Fixed useEffect dependency issue causing infinite requests
+  - Made getReportsList function stable with useCallback
+  - Reduced excessive console logging
 - [ ] Test download functionality with different formats
 - [ ] Validate error handling scenarios
 - [ ] Test progress tracking
 - [ ] Ensure compatibility with existing features
+
+## Current Issue Investigation
+
+**Problem:** Reports list shows persistent dummy data instead of fetching from API
+
+**Debugging Steps Added:**
+1. Enhanced error handling with specific HTTP status codes
+2. Added console logging for API responses
+3. Added manual refresh button
+4. Added debug info display in development mode
+5. Added test data functions for verification
+
+**Next Steps:**
+1. Check if `/api/reports/list` endpoint exists on backend
+2. Verify API response format
+3. Test with different authentication states
+4. Clear any browser storage that might contain cached data
 
 ## Technical Requirements
 

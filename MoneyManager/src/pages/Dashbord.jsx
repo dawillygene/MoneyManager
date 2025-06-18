@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   useDashboard, 
   useFinancialSummary, 
@@ -6,7 +7,6 @@ import {
   useCashFlow, 
   useBudgetProgress, 
   useRecentTransactions,
-  useDashboardExport,
   useCurrencyFormatter,
   useDateFormatter
 } from '../hooks/useDashboard';
@@ -23,24 +23,10 @@ const Dashboard = () => {
   const { data: cashFlowData, loading: cashFlowLoading } = useCashFlow(6);
   const { data: budgetProgress, loading: budgetLoading } = useBudgetProgress(selectedPeriod);
   const { data: recentTransactions, loading: transactionsLoading } = useRecentTransactions(5);
-  const { exportDashboard, loading: exportLoading } = useDashboardExport();
 
   // Handle period change
   const handlePeriodChange = (period) => {
     setSelectedPeriod(period);
-  };
-
-  // Handle dashboard export
-  const handleExport = async () => {
-    try {
-      await exportDashboard({
-        period: selectedPeriod,
-        format: 'pdf',
-        includeCharts: true
-      });
-    } catch (error) {
-      console.error('Export failed:', error);
-    }
   };
 
   // Loading state
@@ -92,19 +78,11 @@ const Dashboard = () => {
               <option value="this-year">This Year</option>
             </select>
             <button
-              onClick={handleExport}
-              disabled={exportLoading}
-              className="orange-bg text-white rounded-md px-3 py-1 text-sm flex items-center hover:bg-opacity-90 disabled:opacity-50"
+              onClick={refreshDashboard}
+              className="bg-gray-100 text-gray-700 border border-gray-300 rounded-md px-3 py-1 text-sm flex items-center hover:bg-gray-200 transition-colors"
+              title="Refresh Dashboard"
             >
-              {exportLoading ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i> Exporting...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-download mr-2"></i> Export
-                </>
-              )}
+              <i className="fas fa-sync-alt mr-2"></i> Refresh
             </button>
           </div>
         </div>
@@ -119,14 +97,19 @@ const Dashboard = () => {
                 <h3 className="text-2xl font-bold navy-text mt-1">
                   {financialSummary ? formatCurrency(financialSummary.summary?.accountBalance || 0) : 'Loading...'}
                 </h3>
-                {financialSummary?.comparisons?.incomeVsLastMonth && (
+                {financialSummary?.comparisons?.balanceVsLastMonth ? (
                   <p className={`text-xs flex items-center mt-2 ${
-                    financialSummary.comparisons.incomeVsLastMonth.percentageChange >= 0 ? 'text-green-500' : 'text-red-500'
+                    financialSummary.comparisons.balanceVsLastMonth.percentageChange >= 0 ? 'text-green-500' : 'text-red-500'
                   }`}>
-                    <i className={`fas ${financialSummary.comparisons.incomeVsLastMonth.percentageChange >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1`}></i>
-                    {Math.abs(financialSummary.comparisons.incomeVsLastMonth.percentageChange || 0).toFixed(1)}% from last period
+                    <i className={`fas ${financialSummary.comparisons.balanceVsLastMonth.percentageChange >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1`}></i>
+                    {Math.abs(financialSummary.comparisons.balanceVsLastMonth.percentageChange || 0).toFixed(1)}% from last period
                   </p>
-                )}
+                ) : financialSummary?.comparisons ? (
+                  <p className="text-xs text-gray-400 mt-2">
+                    <i className="fas fa-minus mr-1"></i>
+                    No comparison data available
+                  </p>
+                ) : null}
               </div>
               <div className="rounded-full p-2 bg-blue-100 text-blue-500">
                 <i className="fas fa-wallet text-lg"></i>
@@ -142,14 +125,19 @@ const Dashboard = () => {
                 <h3 className="text-2xl font-bold navy-text mt-1">
                   {financialSummary ? formatCurrency(financialSummary.summary?.totalIncome || 0) : 'Loading...'}
                 </h3>
-                {financialSummary?.comparisons?.incomeVsLastMonth && (
+                {financialSummary?.comparisons?.incomeVsLastMonth ? (
                   <p className={`text-xs flex items-center mt-2 ${
                     financialSummary.comparisons.incomeVsLastMonth.percentageChange >= 0 ? 'text-green-500' : 'text-red-500'
                   }`}>
                     <i className={`fas ${financialSummary.comparisons.incomeVsLastMonth.percentageChange >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'} mr-1`}></i>
                     {Math.abs(financialSummary.comparisons.incomeVsLastMonth.percentageChange || 0).toFixed(1)}% from last period
                   </p>
-                )}
+                ) : financialSummary?.comparisons ? (
+                  <p className="text-xs text-gray-400 mt-2">
+                    <i className="fas fa-minus mr-1"></i>
+                    No comparison data available
+                  </p>
+                ) : null}
               </div>
               <div className="rounded-full p-2 bg-green-100 text-green-500">
                 <i className="fas fa-arrow-down text-lg"></i>
@@ -165,14 +153,19 @@ const Dashboard = () => {
                 <h3 className="text-2xl font-bold navy-text mt-1">
                   {financialSummary ? formatCurrency(financialSummary.summary?.totalExpenses || 0) : 'Loading...'}
                 </h3>
-                {financialSummary?.comparisons?.expensesVsLastMonth && (
+                {financialSummary?.comparisons?.expensesVsLastMonth ? (
                   <p className={`text-xs flex items-center mt-2 ${
                     financialSummary.comparisons.expensesVsLastMonth.percentageChange <= 0 ? 'text-green-500' : 'text-red-500'
                   }`}>
                     <i className={`fas ${financialSummary.comparisons.expensesVsLastMonth.percentageChange <= 0 ? 'fa-arrow-down' : 'fa-arrow-up'} mr-1`}></i>
                     {Math.abs(financialSummary.comparisons.expensesVsLastMonth.percentageChange || 0).toFixed(1)}% from last period
                   </p>
-                )}
+                ) : financialSummary?.comparisons ? (
+                  <p className="text-xs text-gray-400 mt-2">
+                    <i className="fas fa-minus mr-1"></i>
+                    No comparison data available
+                  </p>
+                ) : null}
               </div>
               <div className="rounded-full p-2 bg-orange-100 text-orange">
                 <i className="fas fa-arrow-up text-lg"></i>
@@ -289,39 +282,67 @@ const Dashboard = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Expenses by Category */}
+          {/* Recent Transactions */}
           <div className="bg-white rounded-lg shadow p-4 col-span-1">
-            <h3 className="text-lg font-semibold mb-4 navy-text">Expenses by Category</h3>
-            <div className="chart-container">
-              {categoriesLoading ? (
+            <h3 className="text-lg font-semibold mb-4 navy-text">Recent Activity</h3>
+            <div className="space-y-3">
+              {transactionsLoading ? (
                 <div className="flex items-center justify-center h-40">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 </div>
-              ) : expenseCategories?.categories && expenseCategories.categories.length > 0 ? (
-                <div className="text-center">
-                  <div className="w-40 h-40 mx-auto rounded-full border-8 border-gray-200 relative">
-                    {/* Pie chart representation */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-medium">Categories</span>
+              ) : recentTransactions?.transactions && recentTransactions.transactions.length > 0 ? (
+                <div className="space-y-3">
+                  {recentTransactions.transactions.slice(0, 5).map((transaction, index) => (
+                    <div key={transaction.id || index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${
+                          transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'
+                        }`}>
+                          <i className={`fas ${transaction.type === 'income' ? 'fa-arrow-down' : 'fa-arrow-up'}`}></i>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {transaction.description || transaction.title || 'Transaction'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {transaction.category || 'Uncategorized'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-semibold ${
+                          transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount || 0)}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {getRelativeTime(transaction.date || transaction.createdAt)}
+                        </p>
+                      </div>
                     </div>
+                  ))}
+                  
+                  <div className="mt-3 pt-2 border-t border-gray-100">
+                    <Link 
+                      to="/transactions" 
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium block text-center"
+                    >
+                      View all transactions →
+                    </Link>
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-500 h-40 flex items-center justify-center">
-                  No expense data available
+                <div className="text-center text-gray-500 h-40 flex flex-col items-center justify-center">
+                  <i className="fas fa-receipt text-2xl text-gray-300 mb-2"></i>
+                  <span className="text-sm">No recent transactions</span>
+                  <Link 
+                    to="/transactions" 
+                    className="text-xs text-blue-600 hover:text-blue-800 mt-2"
+                  >
+                    Add your first transaction
+                  </Link>
                 </div>
               )}
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {expenseCategories?.categories?.slice(0, 4).map((category, index) => {
-                const colors = ['orange-bg', 'light-blue-bg', 'navy-bg', 'bg-green-400'];
-                return (
-                  <div key={category.name} className="flex items-center">
-                    <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]} mr-2`}></div>
-                    <span className="text-xs">{category.name} ({category.percentage?.toFixed(0) || 0}%)</span>
-                  </div>
-                );
-              })}
             </div>
           </div>
 

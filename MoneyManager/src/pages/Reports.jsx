@@ -1,550 +1,566 @@
-import React, { useState, useEffect } from 'react';
-import {
-  useReports,
-  useExpenseAnalysis,
-  useIncomeVsExpenses,
-  useSavingsReport,
-  useBudgetPerformance,
-  useReportGeneration,
-  useReportExport,
-  usePeriodManager
-} from '../hooks/useReports';
-import { useCurrencyFormatter, useDateFormatter } from '../hooks/useDashboard';
+import React, { useState } from 'react';
+import { usePeriodManager } from '../hooks/useReports';
+import { reportService } from '../api/services';
 
 const Reports = () => {
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [activeReportType, setActiveReportType] = useState(null);
-  const [selectedFormat, setSelectedFormat] = useState('pdf');
-  const [downloadingReports, setDownloadingReports] = useState(new Set());
+  const [selectedReportType, setSelectedReportType] = useState('expense_analysis');
+  const [format, setFormat] = useState('pdf');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateSuccess, setGenerateSuccess] = useState(false);
+  const [generateError, setGenerateError] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   
-  // Period management
-  const { 
-    period, 
-    customRange, 
-    getPeriodParams, 
-    updatePeriod, 
-    updateCustomRange, 
-    getPeriodLabel 
-  } = usePeriodManager('this-month');
+  const { period, customRange, updatePeriod, updateCustomRange, getPeriodLabel } = usePeriodManager('this-month');
 
-  // Report management hooks
-  const { 
-    reports, 
-    loading: reportsLoading, 
-    error: reportsError, 
-    getReportsList, 
-    downloadReport, 
-    deleteReport 
-  } = useReports();
+  // Report type options
+  const reportTypes = [
+    { 
+      value: 'expense_analysis', 
+      label: 'Expense Analysis', 
+      description: 'Detailed breakdown of your expenses by category with trends and insights',
+      icon: 'fa-chart-pie',
+      color: 'from-blue-500 to-blue-600'
+    },
+    { 
+      value: 'income_vs_expenses', 
+      label: 'Income vs Expenses', 
+      description: 'Compare your income and expenses with savings analysis',
+      icon: 'fa-chart-line',
+      color: 'from-green-500 to-green-600'
+    },
+    { 
+      value: 'budget_progress', 
+      label: 'Budget Progress', 
+      description: 'Track your budget adherence and performance metrics',
+      icon: 'fa-bullseye',
+      color: 'from-purple-500 to-purple-600'
+    },
+    { 
+      value: 'savings_report', 
+      label: 'Savings Report', 
+      description: 'Comprehensive savings analysis and goal tracking',
+      icon: 'fa-piggy-bank',
+      color: 'from-emerald-500 to-emerald-600'
+    },
+    { 
+      value: 'comprehensive', 
+      label: 'Comprehensive Report', 
+      description: 'Complete financial overview with all metrics and insights',
+      icon: 'fa-file-alt',
+      color: 'from-orange-500 to-orange-600'
+    }
+  ];
+  
+  // Format options
+  const formatOptions = [
+    { value: 'pdf', label: 'PDF Document', icon: 'fa-file-pdf', color: 'text-red-500' },
+    { value: 'excel', label: 'Excel Spreadsheet', icon: 'fa-file-excel', color: 'text-green-500' },
+    { value: 'csv', label: 'CSV Data File', icon: 'fa-file-csv', color: 'text-blue-500' }
+  ];
 
-  const { 
-    generatingReports, 
-    generateReportWithTracking 
-  } = useReportGeneration();
+  // Generate report ID based on type and current date
+  const generateReportId = (type) => {
+    const now = new Date();
+    const yearMonth = now.getFullYear().toString() + (now.getMonth() + 1).toString().padStart(2, '0');
+    return `${type}_${yearMonth}_001`;
+  };
 
-  const { exportReport, loading: exportLoading, progress: exportProgress } = useReportExport();
-
-  // Individual report data hooks
-  const { data: expenseData, loading: expenseLoading } = useExpenseAnalysis(getPeriodParams());
-  const { data: incomeExpensesData, loading: incomeExpensesLoading } = useIncomeVsExpenses(getPeriodParams());
-  const { data: savingsData, loading: savingsLoading } = useSavingsReport(getPeriodParams());
-  const { data: budgetData, loading: budgetLoading } = useBudgetPerformance(getPeriodParams());
-
-  // Utility hooks
-  const { formatCurrency } = useCurrencyFormatter();
-  const { formatDate } = useDateFormatter();
-
-  // Load reports list on component mount
-  useEffect(() => {
-    getReportsList();
-  }, []);
-
-  // Handle report generation
-  const handleGenerateReport = async (reportType) => {
+  // Generate proper report data based on period and type
+  const generateReportData = async (reportType, period, customRange) => {
     try {
-      const reportData = {
+      let reportData;
+      const params = {};
+      
+      // Set up date parameters
+      if (period === 'custom') {
+        params.startDate = customRange.startDate;
+        params.endDate = customRange.endDate;
+      } else {
+        params.period = period;
+      }
+
+      setDownloadProgress(25);
+
+      // Fetch actual data based on report type
+      switch (reportType) {
+        case 'expense_analysis':
+          reportData = await reportService.getExpenseAnalysis(params);
+          break;
+        case 'income_vs_expenses':
+          reportData = await reportService.getIncomeVsExpenses(params);
+          break;
+        case 'savings_report':
+          reportData = await reportService.getSavingsReport(params);
+          break;
+        case 'budget_progress':
+          reportData = await reportService.getBudgetPerformance(params);
+          break;
+        case 'comprehensive':
+          // Fetch all data for comprehensive report
+          const [expenses, income, savings, budget] = await Promise.all([
+            reportService.getExpenseAnalysis(params),
+            reportService.getIncomeVsExpenses(params),
+            reportService.getSavingsReport(params),
+            reportService.getBudgetPerformance(params)
+          ]);
+          reportData = { expenses, income, savings, budget };
+          break;
+        default:
+          throw new Error('Invalid report type selected');
+      }
+
+      setDownloadProgress(50);
+      return reportData;
+    } catch (error) {
+      console.error('Error fetching report data:', error);
+      throw error;
+    }
+  };
+
+  // Generate and download report using proper API integration
+  const generateAndDownloadReport = async (reportType, format, reportData) => {
+    try {
+      setDownloadProgress(60);
+
+      // Generate report ID
+      const reportId = generateReportId(reportType);
+      
+      // Create report generation request
+      const reportRequest = {
         reportType,
         reportName: `${getReportTypeLabel(reportType)} - ${getPeriodLabel()}`,
+        data: reportData,
         dateRange: period === 'custom' ? {
           startDate: customRange.startDate,
           endDate: customRange.endDate
         } : undefined,
         parameters: {
           period: period !== 'custom' ? period : undefined,
-          includeSubcategories: true,
-          includeTrends: true,
-          includeRecommendations: true,
+          includeCharts: true,
+          includeAnalysis: true,
           currency: 'TZS'
         },
-        format: 'PDF',
-        includeCharts: true
+        format: format.toUpperCase()
       };
 
-      await generateReportWithTracking(reportData);
-      setShowGenerateModal(false);
+      setDownloadProgress(75);
+
+      // Generate the report
+      const generateResult = await reportService.generateReport(reportRequest);
       
-      // Refresh reports list after generation
+      setDownloadProgress(85);
+
+      // Download the generated report
+      const downloadResult = await reportService.downloadReport(reportId, format);
+      
+      setDownloadProgress(95);
+
+      // Handle the downloaded file
+      const { blob, filename, fileSize } = downloadResult;
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
       setTimeout(() => {
-        getReportsList();
-      }, 2000);
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+
+      setDownloadProgress(100);
+
+      return { 
+        success: true, 
+        filename,
+        fileSize,
+        reportData: generateResult
+      };
+
     } catch (error) {
-      console.error('Failed to generate report:', error);
+      console.error('Error generating/downloading report:', error);
+      throw error;
     }
   };
 
-  // Handle report export
-  const handleExportReport = async () => {
+  const handleGenerateReport = async (e) => {
+    e.preventDefault();
+    setIsGenerating(true);
+    setGenerateSuccess(false);
+    setGenerateError(null);
+    setDownloadProgress(0);
+    
     try {
-      const result = await exportReport({
-        reportType: 'comprehensive',
-        dateRange: period === 'custom' ? {
-          startDate: customRange.startDate,
-          endDate: customRange.endDate
-        } : undefined,
-        period: period !== 'custom' ? period : undefined,
-        format: selectedFormat,
-        dataLevel: 'detailed',
-        includeMetadata: true
-      });
+      // Validate custom date range if selected
+      if (period === 'custom' && (!customRange.startDate || !customRange.endDate)) {
+        throw new Error('Please select both start and end dates for custom range.');
+      }
+
+      console.log(`Generating ${selectedReportType} report in ${format} format for period: ${getPeriodLabel()}`);
+      
+      // Step 1: Generate report data from API
+      const reportData = await generateReportData(selectedReportType, period, customRange);
+      
+      // Step 2: Generate and download the report file
+      const result = await generateAndDownloadReport(selectedReportType, format, reportData);
       
       if (result.success) {
-        console.log(`Report exported successfully: ${result.filename} (${result.fileSize} bytes)`);
+        setGenerateSuccess(true);
+        console.log(`Report downloaded successfully: ${result.filename} (${Math.round(result.fileSize / 1024)} KB)`);
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+          setGenerateSuccess(false);
+          setDownloadProgress(0);
+        }, 5000);
       }
+      
     } catch (error) {
-      console.error('Export failed:', error);
-    }
-  };
-
-  // Handle report download
-  const handleDownloadReport = async (reportId, format = 'pdf') => {
-    setDownloadingReports(prev => new Set([...prev, reportId]));
-    
-    try {
-      const result = await downloadReport(reportId, format);
-      if (result.success) {
-        console.log(`Report downloaded successfully: ${result.filename}`);
-        if (result.fileSize) {
-          const sizeInKB = Math.round(result.fileSize / 1024);
-          console.log(`File size: ${sizeInKB} KB`);
-        }
+      console.error('Failed to generate/download report:', error);
+      
+      // Handle specific error codes and provide user-friendly messages
+      let errorMessage = error.message;
+      
+      if (error.code === 'REPORT_GENERATION_FAILED') {
+        errorMessage = 'Report generation failed. Please try again later.';
+      } else if (error.code === 'INVALID_FORMAT') {
+        errorMessage = 'Invalid file format selected. Please choose PDF, Excel, or CSV.';
+      } else if (error.code === 'REPORT_NOT_FOUND') {
+        errorMessage = 'No data available for the selected period. Please try a different time range.';
+      } else if (error.message.includes('Authentication') || error.message.includes('401')) {
+        errorMessage = 'Session expired. Please log in again.';
+      } else if (error.message.includes('Network')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message.includes('Invalid report type')) {
+        errorMessage = 'Invalid report type selected. Please refresh the page and try again.';
       }
-    } catch (error) {
-      console.error('Download failed:', error);
+      
+      setGenerateError(errorMessage);
+      
+      // Auto-hide error message after 10 seconds
+      setTimeout(() => {
+        setGenerateError(null);
+      }, 10000);
+      
     } finally {
-      setDownloadingReports(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(reportId);
-        return newSet;
-      });
+      setIsGenerating(false);
     }
   };
 
-  // Handle report deletion
-  const handleDeleteReport = async (reportId) => {
-    const reportName = reports.find(r => r.id === reportId)?.reportName || 'this report';
-    
-    if (window.confirm(`Are you sure you want to delete "${reportName}"? This action cannot be undone.`)) {
-      try {
-        await deleteReport(reportId);
-        // Success feedback could be added here if needed
-        console.log('Report deleted successfully');
-      } catch (error) {
-        console.error('Delete failed:', error);
-        // The error is already handled in the hook and will show in the UI
-        alert('Failed to delete the report. Please try again.');
-      }
-    }
-  };
-
-  // Helper function to get report type label
   const getReportTypeLabel = (type) => {
-    const labels = {
-      'expense-analysis': 'Expense Analysis',
-      'income-vs-expenses': 'Income vs Expenses',
-      'savings-report': 'Savings Report',
-      'budget-performance': 'Budget Performance'
-    };
-    return labels[type] || type;
+    const reportType = reportTypes.find(rt => rt.value === type);
+    return reportType ? reportType.label : type;
   };
 
-  // Get summary data for report cards
-  const getReportCardData = () => [
-    {
-      type: 'expense-analysis',
-      title: 'Expense Analysis',
-      description: 'Breakdown of your expenses by category.',
-      icon: 'fa-chart-pie',
-      iconColor: 'light-blue-bg navy-text',
-      data: expenseData,
-      loading: expenseLoading,
-      summary: expenseData ? `Total: ${formatCurrency(expenseData.totalExpenses || 0)}` : 'Loading...'
-    },
-    {
-      type: 'income-vs-expenses',
-      title: 'Income vs Expenses',
-      description: 'Compare your income and expenses over time.',
-      icon: 'fa-chart-line',
-      iconColor: 'light-blue-bg bg-opacity-20 orange-text',
-      data: incomeExpensesData,
-      loading: incomeExpensesLoading,
-      summary: incomeExpensesData ? `Net: ${formatCurrency(incomeExpensesData.summary?.netIncome || 0)}` : 'Loading...'
-    },
-    {
-      type: 'savings-report',
-      title: 'Savings Report',
-      description: 'Track your saving habits and progress over time.',
-      icon: 'fa-piggy-bank',
-      iconColor: 'bg-green-100 text-green-500',
-      data: savingsData,
-      loading: savingsLoading,
-      summary: savingsData ? `Rate: ${savingsData.savingsSummary?.savingsRate?.toFixed(1) || 0}%` : 'Loading...'
-    }
-  ];
+  const getReportTypeDescription = (type) => {
+    const reportType = reportTypes.find(rt => rt.value === type);
+    return reportType ? reportType.description : '';
+  };
+
+  // Helper function to convert Tailwind gradient classes to actual colors
+  const getGradientColors = (colorClass) => {
+    const colorMap = {
+      'from-blue-500 to-blue-600': '#3B82F6, #2563EB',
+      'from-green-500 to-green-600': '#10B981, #059669',
+      'from-purple-500 to-purple-600': '#8B5CF6, #7C3AED',
+      'from-emerald-500 to-emerald-600': '#10B981, #059669',
+      'from-orange-500 to-orange-600': '#F97316, #EA580C'
+    };
+    return colorMap[colorClass] || '#6B7280, #4B5563';
+  };
+
+  // Helper function to get format icon colors
+  const getFormatIconColor = (format) => {
+    const colorMap = {
+      'pdf': '#DC2626',     // Red
+      'excel': '#059669',   // Green
+      'csv': '#2563EB'      // Blue
+    };
+    return colorMap[format] || '#6B7280';
+  };
 
   return (
-    <>
-      <section id="reports" className="mb-12">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <h2 className="text-2xl font-bold navy-text mb-2 md:mb-0">Financial Reports</h2>
-          <div className="flex space-x-2">
-            <select
-              value={period}
-              onChange={(e) => updatePeriod(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="this-month">This Month</option>
-              <option value="last-month">Last Month</option>
-              <option value="last-3-months">Last 3 Months</option>
-              <option value="last-6-months">Last 6 Months</option>
-              <option value="this-year">This Year</option>
-              <option value="custom">Custom Range</option>
-            </select>
-            
-            {period === 'custom' && (
-              <div className="flex space-x-2">
-                <input
-                  type="date"
-                  value={customRange.startDate}
-                  onChange={(e) => updateCustomRange(e.target.value, customRange.endDate)}
-                  className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="date"
-                  value={customRange.endDate}
-                  onChange={(e) => updateCustomRange(customRange.startDate, e.target.value)}
-                  className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-            
-            <select
-              value={selectedFormat}
-              onChange={(e) => setSelectedFormat(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-            >
-              <option value="pdf">PDF</option>
-              <option value="excel">Excel</option>
-              <option value="csv">CSV</option>
-            </select>
-            
-            <button
-              onClick={handleExportReport}
-              disabled={exportLoading}
-              className="orange-bg text-white rounded-md px-3 py-1 text-sm hover:bg-opacity-90 disabled:opacity-50 relative"
-            >
-              {exportLoading ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i> 
-                  Exporting... {exportProgress > 0 ? `${exportProgress}%` : ''}
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-download mr-2"></i> Export {selectedFormat.toUpperCase()}
-                </>
-              )}
-            </button>
-          </div>
+    <section className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold navy-text mb-2">Financial Reports</h1>
+          <p className="text-gray-600 text-lg">Generate and download comprehensive financial reports instantly</p>
         </div>
 
-        {/* Report Generation Status */}
-        {generatingReports.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-3 navy-text">Generating Reports</h3>
-            <div className="space-y-2">
-              {generatingReports.map((report) => (
-                <div key={report.id} className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-blue-800">{report.reportName}</p>
-                      <p className="text-sm text-blue-600">{report.message || 'Processing...'}</p>
-                    </div>
-                    <div className="flex items-center">
-                      {report.status === 'processing' && (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                      )}
-                      <span className="text-sm font-medium text-blue-700">
-                        {report.progress || 0}%
-                      </span>
-                    </div>
-                  </div>
-                  {report.progress > 0 && (
-                    <div className="mt-2 w-full bg-blue-200 rounded-full h-2">
+        {/* Main Form Card */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          <form onSubmit={handleGenerateReport}>
+            <div className="space-y-8">
+              
+              {/* Report Type Selection */}
+              <div>
+                <label className="block text-lg font-semibold navy-text mb-4">
+                  <i className="fas fa-chart-bar mr-2"></i>
+                  Select Report Type
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {reportTypes.map(type => {
+                    const isSelected = selectedReportType === type.value;
+                    return (
                       <div 
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${report.progress}%` }}
-                      ></div>
+                        key={type.value}
+                        onClick={() => setSelectedReportType(type.value)}
+                        className={`relative overflow-hidden border-2 rounded-xl p-4 cursor-pointer transition-all duration-300 ${
+                          isSelected 
+                            ? 'border-blue-500 bg-blue-50 shadow-lg scale-105 ring-2 ring-blue-200' 
+                            : 'border-gray-200 hover:border-blue-300 hover:shadow-md hover:bg-gray-50'
+                        }`}
+                        style={{
+                          background: isSelected ? '#EBF8FF' : '#FFFFFF'
+                        }}
+                      >
+                        <div 
+                          className="absolute top-0 right-0 w-16 h-16 rounded-bl-full opacity-10"
+                          style={{
+                            background: `linear-gradient(135deg, ${getGradientColors(type.color)})`
+                          }}
+                        ></div>
+                        <div className="relative">
+                          <div className="flex items-center mb-2">
+                            <div 
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 shadow-sm"
+                              style={{
+                                background: `linear-gradient(135deg, ${getGradientColors(type.color)})`
+                              }}
+                            >
+                              <i className={`fas ${type.icon} text-sm`}></i>
+                            </div>
+                            <input
+                              type="radio"
+                              name="reportType"
+                              value={type.value}
+                              checked={isSelected}
+                              onChange={() => setSelectedReportType(type.value)}
+                              className="ml-auto h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            />
+                          </div>
+                          <h3 className="font-semibold navy-text text-sm mb-1">{type.label}</h3>
+                          <p className="text-xs text-gray-600 leading-relaxed">{type.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Time Period */}
+              <div>
+                <label className="block text-lg font-semibold navy-text mb-4">
+                  <i className="fas fa-calendar-alt mr-2"></i>
+                  Time Period
+                </label>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <select
+                      value={period}
+                      onChange={(e) => updatePeriod(e.target.value)}
+                      className="block w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors"
+                    >
+                      <option value="this-month">This Month</option>
+                      <option value="last-month">Last Month</option>
+                      <option value="last-3-months">Last 3 Months</option>
+                      <option value="last-6-months">Last 6 Months</option>
+                      <option value="this-year">This Year</option>
+                      <option value="last-year">Last Year</option>
+                      <option value="custom">Custom Date Range</option>
+                    </select>
+                  </div>
+                  {period === 'custom' && (
+                    <div className="flex space-x-3">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          value={customRange.startDate}
+                          onChange={(e) => updateCustomRange(e.target.value, customRange.endDate)}
+                          className="block w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-500 mb-1">End Date</label>
+                        <input
+                          type="date"
+                          value={customRange.endDate}
+                          onChange={(e) => updateCustomRange(customRange.startDate, e.target.value)}
+                          className="block w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Report Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {getReportCardData().map((report) => (
-            <div key={report.type} className="bg-white rounded-lg shadow p-4">
-              <div className="flex items-center mb-4">
-                <div className={`rounded-full p-2 ${report.iconColor} mr-3`}>
-                  <i className={`fas ${report.icon}`}></i>
-                </div>
-                <h3 className="text-lg font-semibold navy-text">{report.title}</h3>
               </div>
-              <p className="text-sm text-gray-500 mb-2">{report.description}</p>
-              
-              {report.loading ? (
-                <div className="flex items-center text-sm text-gray-600 mb-4">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                  Loading...
+
+              {/* Report Format */}
+              <div>
+                <label className="block text-lg font-semibold navy-text mb-4">
+                  <i className="fas fa-file-download mr-2"></i>
+                  Download Format
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {formatOptions.map(option => {
+                    const isSelected = format === option.value;
+                    return (
+                      <div 
+                        key={option.value}
+                        onClick={() => setFormat(option.value)}
+                        className={`border-2 rounded-xl p-4 cursor-pointer transition-all text-center shadow-sm ${
+                          isSelected 
+                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 scale-105' 
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50 hover:shadow-md'
+                        }`}
+                        style={{
+                          background: isSelected ? '#EBF8FF' : '#FFFFFF'
+                        }}
+                      >
+                        <i className={`fas ${option.icon} text-2xl mb-2`} style={{ 
+                          color: isSelected ? '#2563EB' : getFormatIconColor(option.value)
+                        }}></i>
+                        <p className={`font-medium text-sm mb-2 ${isSelected ? 'text-blue-700' : 'navy-text'}`}>
+                          {option.label}
+                        </p>
+                        <input
+                          type="radio"
+                          name="format"
+                          value={option.value}
+                          checked={isSelected}
+                          onChange={() => setFormat(option.value)}
+                          className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <p className="text-sm font-medium text-navy mb-4">{report.summary}</p>
+              </div>
+
+              {/* Report Summary */}
+              <div className="bg-gray-50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold navy-text mb-3">
+                  <i className="fas fa-eye mr-2"></i>
+                  Report Preview
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-600">Type:</span>
+                    <p className="navy-text">{reportTypes.find(rt => rt.value === selectedReportType)?.label}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Period:</span>
+                    <p className="navy-text">{getPeriodLabel()}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-600">Format:</span>
+                    <p className="navy-text">{formatOptions.find(f => f.value === format)?.label}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              {isGenerating && (
+                <div className="bg-blue-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-700">Generating Report...</span>
+                    <span className="text-sm font-medium text-blue-700">{downloadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-3">
+                    <div 
+                      className="bg-blue-500 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${downloadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
               )}
-              
-              <button
-                onClick={() => handleGenerateReport(report.type)}
-                className="w-full navy-bg text-white rounded-md py-2 text-sm hover:bg-opacity-90"
-              >
-                Generate Report
-              </button>
+
+              {/* Generate Button */}
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={isGenerating || (period === 'custom' && (!customRange.startDate || !customRange.endDate))}
+                  className={`w-full text-white rounded-xl py-4 font-semibold text-lg transition-all duration-300 shadow-lg ${
+                    isGenerating || (period === 'custom' && (!customRange.startDate || !customRange.endDate))
+                      ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                      : 'orange-bg hover:opacity-90 hover:shadow-xl transform hover:scale-105 active:scale-95'
+                  }`}
+                  style={{
+                    background: isGenerating || (period === 'custom' && (!customRange.startDate || !customRange.endDate))
+                      ? '#9CA3AF'
+                      : 'linear-gradient(135deg, #F2994A 0%, #E67E22 100%)'
+                  }}
+                >
+                  {isGenerating ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-3"></i>
+                      Generating & Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-download mr-3"></i>
+                      Generate & Download Report
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Success Message */}
+              {generateSuccess && (
+                <div className="bg-green-50 border-2 border-green-200 text-green-800 rounded-xl p-4 animate-pulse">
+                  <div className="flex items-center">
+                    <i className="fas fa-check-circle text-green-500 text-xl mr-3"></i>
+                    <div>
+                      <p className="font-semibold">Report Downloaded Successfully!</p>
+                      <p className="text-sm mt-1">Check your downloads folder for the generated report file.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Error Message */}
+              {generateError && (
+                <div className="bg-red-50 border-2 border-red-200 text-red-800 rounded-xl p-4">
+                  <div className="flex items-center">
+                    <i className="fas fa-exclamation-triangle text-red-500 text-xl mr-3"></i>
+                    <div>
+                      <p className="font-semibold">Download Failed</p>
+                      <p className="text-sm mt-1">{generateError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+          </form>
         </div>
 
-        {/* Available Reports Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-4 navy-bg text-white">
-            <h3 className="font-semibold">Generated Reports</h3>
-          </div>
-          <div className="p-0">
-            {reportsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                <span className="ml-2">Loading reports...</span>
-              </div>
-            ) : reportsError ? (
-              <div className="text-center py-8 text-red-600">
-                <i className="fas fa-exclamation-circle mr-2"></i>
-                Error loading reports: {reportsError}
-              </div>
-            ) : reports.length > 0 ? (
-              <div className="table-responsive">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">
-                        Report Name
-                      </th>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">
-                        Type
-                      </th>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">
-                        Date Range
-                      </th>
-                      <th className="py-3 px-4 text-left text-sm font-medium text-gray-700">
-                        Generated On
-                      </th>
-                      <th className="py-3 px-4 text-center text-sm font-medium text-gray-700">
-                        Status
-                      </th>
-                      <th className="py-3 px-4 text-center text-sm font-medium text-gray-700">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.map((report) => (
-                      <tr key={report.id} className="border-b border-gray-200 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-sm font-medium">{report.reportName}</td>
-                        <td className="py-3 px-4 text-sm">{getReportTypeLabel(report.reportType)}</td>
-                        <td className="py-3 px-4 text-sm">
-                          {report.dateRange ? 
-                            `${formatDate(report.dateRange.startDate)} - ${formatDate(report.dateRange.endDate)}` :
-                            report.period || 'N/A'
-                          }
-                        </td>
-                        <td className="py-3 px-4 text-sm">{formatDate(report.generatedAt)}</td>
-                        <td className="py-3 px-4 text-sm text-center">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            report.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            report.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                            report.status === 'failed' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {report.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            {/* Download dropdown */}
-                            <div className="relative group">
-                              <button 
-                                className={`text-blue-500 hover:text-blue-700 ${downloadingReports.has(report.id) ? 'opacity-50' : ''}`}
-                                title="Download"
-                                disabled={downloadingReports.has(report.id)}
-                              >
-                                {downloadingReports.has(report.id) ? (
-                                  <i className="fas fa-spinner fa-spin"></i>
-                                ) : (
-                                  <i className="fas fa-download"></i>
-                                )}
-                              </button>
-                              {/* Format selection dropdown */}
-                              <div className="absolute right-0 top-6 hidden group-hover:block bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-20">
-                                <button
-                                  onClick={() => handleDownloadReport(report.id, 'pdf')}
-                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                                  disabled={downloadingReports.has(report.id)}
-                                >
-                                  PDF
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadReport(report.id, 'excel')}
-                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                                  disabled={downloadingReports.has(report.id)}
-                                >
-                                  Excel
-                                </button>
-                                <button
-                                  onClick={() => handleDownloadReport(report.id, 'csv')}
-                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
-                                  disabled={downloadingReports.has(report.id)}
-                                >
-                                  CSV
-                                </button>
-                              </div>
-                            </div>
-                            <button 
-                              onClick={() => handleDeleteReport(report.id)}
-                              className="text-red-500 hover:text-red-700"
-                              title="Delete"
-                            >
-                              <i className="fas fa-trash"></i>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-file-alt text-4xl mb-4"></i>
-                <p>No reports generated yet.</p>
-                <p className="text-sm">Generate your first report using the cards above.</p>
-              </div>
-            )}
+        {/* Info Section */}
+        <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+          <h3 className="font-semibold navy-text mb-3">
+            <i className="fas fa-info-circle mr-2"></i>
+            Report Information
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+            <div>
+              <strong>PDF Reports:</strong> Professional formatted documents with charts and summaries
+            </div>
+            <div>
+              <strong>Excel Reports:</strong> Detailed spreadsheets with multiple sheets and data analysis
+            </div>
+            <div>
+              <strong>CSV Reports:</strong> Raw data exports perfect for further analysis
+            </div>
           </div>
         </div>
-
-        {/* Quick Insights Section */}
-        {(expenseData || incomeExpensesData || savingsData) && (
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Expense Insights */}
-            {expenseData && (
-              <div className="bg-white rounded-lg shadow p-4">
-                <h4 className="font-semibold navy-text mb-3">Expense Insights</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Expenses:</span>
-                    <span className="text-sm font-medium">{formatCurrency(expenseData.totalExpenses)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Highest Category:</span>
-                    <span className="text-sm font-medium">{expenseData.insights?.highestCategory || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Trend:</span>
-                    <span className={`text-sm font-medium ${
-                      expenseData.trends?.trendDirection === 'increasing' ? 'text-red-500' : 'text-green-500'
-                    }`}>
-                      {expenseData.trends?.trendDirection || 'N/A'} 
-                      {expenseData.trends?.percentageChange && ` (${expenseData.trends.percentageChange})`}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Income vs Expenses Insights */}
-            {incomeExpensesData && (
-              <div className="bg-white rounded-lg shadow p-4">
-                <h4 className="font-semibold navy-text mb-3">Income vs Expenses</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Net Income:</span>
-                    <span className={`text-sm font-medium ${
-                      (incomeExpensesData.summary?.netIncome || 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      {formatCurrency(incomeExpensesData.summary?.netIncome || 0)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Savings Rate:</span>
-                    <span className={`text-sm font-medium ${
-                      (incomeExpensesData.summary?.savingsRate || 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      {incomeExpensesData.summary?.savingsRate?.toFixed(1) || 0}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Expense Ratio:</span>
-                    <span className="text-sm font-medium">
-                      {incomeExpensesData.summary?.expenseRatio?.toFixed(1) || 0}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Savings Insights */}
-            {savingsData && (
-              <div className="bg-white rounded-lg shadow p-4">
-                <h4 className="font-semibold navy-text mb-3">Savings Overview</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Total Saved:</span>
-                    <span className="text-sm font-medium">{formatCurrency(savingsData.savingsSummary?.totalSaved || 0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Monthly Average:</span>
-                    <span className="text-sm font-medium">{formatCurrency(savingsData.savingsSummary?.monthlySavingsAverage || 0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Emergency Fund:</span>
-                    <span className="text-sm font-medium">
-                      {savingsData.savingsSummary?.emergencyFundMonths?.toFixed(1) || 0} months
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-    </>
+      </div>
+    </section>
   );
 };
 
