@@ -20,10 +20,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+    private final AuthenticationCacheService cacheService;
 
-    public JwtAuthFilter(JwtService jwtService, CustomUserDetailsService userDetailsService) {
+    public JwtAuthFilter(JwtService jwtService, CustomUserDetailsService userDetailsService, 
+                         AuthenticationCacheService cacheService) {
         this.jwtService = jwtService;
         this.userDetailsService = userDetailsService;
+        this.cacheService = cacheService;
     }
 
     @Override
@@ -46,9 +49,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                Claims claims = jwtService.extractClaims(token);
-                String email = claims.getSubject();
+                // Try to get cached JWT claims first
+                CachedJwtClaims cachedClaims = cacheService.getCachedJwtClaims(token);
+                String email;
+                
+                if (cachedClaims != null) {
+                    // Use cached claims
+                    email = cachedClaims.getEmail();
+                } else {
+                    // Parse JWT and cache the claims
+                    Claims claims = jwtService.extractClaims(token);
+                    email = claims.getSubject();
+                    
+                    // Cache the claims for future use
+                    cachedClaims = new CachedJwtClaims(claims, token);
+                    cacheService.cacheJwtClaims(token, cachedClaims);
+                }
 
+                // Load user details (this will use the user cache we implemented earlier)
                 var userDetails = userDetailsService.loadUserByUsername(email);
 
                 var authToken = new UsernamePasswordAuthenticationToken(
@@ -58,6 +76,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             } catch (Exception e) {
                 // Invalid token: skip setting security context
+                // Also remove any cached data for this token
+                cacheService.invalidateTokenCache(token);
             }
         }
 
