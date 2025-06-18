@@ -131,10 +131,15 @@ public class ReportController {
     public ResponseEntity<?> downloadReport(
             @RequestHeader("Authorization") String authorizationHeader,
             @PathVariable String reportId,
-            @RequestParam(required = false) String format) {
+            @RequestParam(defaultValue = "pdf") String format) {
         try {
             Long userId = getUserIdFromToken(authorizationHeader);
             Map<String, Object> result = reportService.downloadReport(userId, reportId, format);
+            
+            // Check if report generation was successful
+            if (!(Boolean) result.getOrDefault("success", false)) {
+                return createErrorResponse((String) result.get("error"), "REPORT_GENERATION_FAILED");
+            }
             
             byte[] fileData = (byte[]) result.get("fileData");
             String fileName = (String) result.get("fileName");
@@ -144,6 +149,7 @@ public class ReportController {
             headers.setContentType(MediaType.parseMediaType(contentType));
             headers.setContentDispositionFormData("attachment", fileName);
             headers.setContentLength(fileData.length);
+            headers.add("X-File-Size", result.get("fileSize").toString());
             
             return ResponseEntity.ok()
                 .headers(headers)

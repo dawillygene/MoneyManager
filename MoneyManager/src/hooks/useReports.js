@@ -93,7 +93,7 @@ export const useReports = () => {
     }
   };
 
-  const downloadReport = async (reportId, format = null) => {
+  const downloadReport = async (reportId, format = 'pdf') => {
     setLoading(true);
     setError(null);
     try {
@@ -102,17 +102,13 @@ export const useReports = () => {
         throw new Error('Authentication required');
       }
       
-      const blob = await reportService.downloadReport(reportId, format);
+      // Call the enhanced download method
+      const downloadResult = await reportService.downloadReport(reportId, format);
       
-      // Get proper filename from the blob response or create a default one
-      let filename = `financial-report-${reportId}`;
+      // Extract the data from the enhanced response
+      const { blob, filename, fileSize } = downloadResult;
       
-      // Try to get filename from Content-Disposition header if available
-      // Since we're getting a blob, we need to handle this differently
-      const reportFormat = format || 'pdf';
-      filename += `.${reportFormat}`;
-      
-      // Create download link with proper handling
+      // Create download link with enhanced handling
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -132,21 +128,45 @@ export const useReports = () => {
         window.URL.revokeObjectURL(url);
       }, 100);
 
-      return { success: true };
+      return { 
+        success: true, 
+        filename, 
+        fileSize 
+      };
     } catch (error) {
       console.error('Report download error:', error);
-      setError(error.message || 'Failed to download report');
       
-      // Show user-friendly error message
-      if (error.response?.status === 404) {
-        setError('Report not found. It may have been deleted or expired.');
-      } else if (error.response?.status === 403) {
-        setError('Access denied. Please check your permissions.');
-      } else {
-        setError('Failed to download report. Please try again.');
+      // Enhanced error handling with specific messages
+      let errorMessage = 'Failed to download report';
+      
+      if (error.code) {
+        // Handle mapped error codes from the API
+        switch (error.code) {
+          case 'REPORT_GENERATION_FAILED':
+            errorMessage = 'Report generation failed. Please try generating the report again.';
+            break;
+          case 'REPORT_DOWNLOAD_FAILED':
+            errorMessage = 'Download failed. Please check your connection and try again.';
+            break;
+          case 'INVALID_FORMAT':
+            errorMessage = 'Invalid file format. Please select PDF, Excel, or CSV.';
+            break;
+          case 'REPORT_NOT_FOUND':
+            errorMessage = 'Report not found. It may have been deleted or expired.';
+            break;
+          default:
+            errorMessage = error.message || 'Failed to download report';
+        }
+      } else if (error.message === 'Authentication required') {
+        errorMessage = 'Please log in to download reports.';
+      } else if (error.message.includes('Network error')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message.includes('Access denied')) {
+        errorMessage = 'Access denied. Please check your permissions.';
       }
       
-      return { success: false, error: error.message };
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -417,136 +437,192 @@ export const useReportTemplates = () => {
   return { templates, loading, error };
 };
 
-// Custom hook for report generation with status tracking
-export const useReportGeneration = () => {
-  const [generatingReports, setGeneratingReports] = useState(new Map());
-  const [error, setError] = useState(null);
-
-  const generateReportWithTracking = async (reportData) => {
-    try {
-      setError(null);
-      
-      // Start report generation
-      const result = await reportService.generateReport(reportData);
-      const reportId = result.reportId;
-
-      // Add to tracking map
-      setGeneratingReports(prev => new Map(prev).set(reportId, {
-        status: 'processing',
-        progress: 0,
-        reportName: reportData.reportName,
-        startTime: new Date()
-      }));
-
-      // Poll for status updates
-      const pollStatus = async () => {
-        try {
-          const statusData = await reportService.getReportStatus(reportId);
-          
-          setGeneratingReports(prev => {
-            const updated = new Map(prev);
-            updated.set(reportId, {
-              ...updated.get(reportId),
-              status: statusData.status,
-              progress: statusData.progress || 0,
-              message: statusData.message
-            });
-            return updated;
-          });
-
-          // Continue polling if still processing
-          if (statusData.status === 'processing') {
-            setTimeout(pollStatus, 2000); // Poll every 2 seconds
-          } else if (statusData.status === 'completed') {
-            // Remove from tracking after 5 seconds
-            setTimeout(() => {
-              setGeneratingReports(prev => {
-                const updated = new Map(prev);
-                updated.delete(reportId);
-                return updated;
-              });
-            }, 5000);
-          }
-        } catch (err) {
-          console.error('Status polling error:', err);
-          setGeneratingReports(prev => {
-            const updated = new Map(prev);
-            updated.set(reportId, {
-              ...updated.get(reportId),
-              status: 'failed',
-              message: 'Failed to check status'
-            });
-            return updated;
-          });
-        }
-      };
-
-      // Start polling
-      setTimeout(pollStatus, 1000);
-
-      return result;
-    } catch (error) {
-      console.error('Report generation error:', error);
-      setError(error.message || 'Failed to generate report');
-      throw error;
-    }
-  };
-
-  const getReportStatus = (reportId) => {
-    return generatingReports.get(reportId) || null;
-  };
-
-  const clearReportTracking = (reportId) => {
-    setGeneratingReports(prev => {
-      const updated = new Map(prev);
-      updated.delete(reportId);
-      return updated;
-    });
-  };
-
-  return {
-    generatingReports: Array.from(generatingReports.entries()).map(([id, data]) => ({ id, ...data })),
-    error,
-    generateReportWithTracking,
-    getReportStatus,
-    clearReportTracking
-  };
-};
-
-// Custom hook for report export functionality
+// Enhanced report export hook with format support
 export const useReportExport = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(0);
 
-  const exportReport = async (exportData) => {
+  const exportReport = async (exportConfig) => {
+    setLoading(true);
+    setError(null);
+    setProgress(0);
+    
     try {
-      setLoading(true);
-      setError(null);
+      const token = await tokenStorage.getAccessToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
 
-      const blob = await reportService.exportReport(exportData);
+      // Validate export configuration
+      const {
+        reportType = 'comprehensive',
+        format = 'pdf',
+        dateRange,
+        period,
+        dataLevel = 'detailed',
+        includeMetadata = true
+      } = exportConfig;
+
+      // Validate format
+      const validFormats = ['pdf', 'excel', 'xlsx', 'csv'];
+      if (!validFormats.includes(format.toLowerCase())) {
+        throw new Error('Invalid format selected');
+      }
+
+      setProgress(25);
+
+      // Generate report ID
+      const reportId = reportService.generateReportId(reportType, dateRange);
+      
+      setProgress(50);
+
+      // Download the report with the specified format
+      const downloadResult = await reportService.downloadReport(reportId, format);
+      
+      setProgress(75);
+
+      // Extract the data and handle download
+      const { blob, filename, fileSize } = downloadResult;
       
       // Create download link
-      const filename = `financial-report-${exportData.reportType}-${new Date().toISOString().split('T')[0]}.${exportData.format}`;
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = filename;
+      link.style.display = 'none';
+      
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
 
-      return { success: true, filename };
-    } catch (err) {
-      console.error('Report export error:', err);
-      setError(err.message || 'Failed to export report');
-      return { success: false, error: err.message };
+      setProgress(100);
+
+      return {
+        success: true,
+        filename,
+        fileSize,
+        format
+      };
+
+    } catch (error) {
+      console.error('Export error:', error);
+      
+      let errorMessage = 'Failed to export report';
+      if (error.message === 'Authentication required') {
+        errorMessage = 'Please log in to export reports.';
+      } else if (error.message === 'Invalid format selected') {
+        errorMessage = 'Invalid format selected. Please choose PDF, Excel, or CSV.';
+      } else if (error.code) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
+      // Reset progress after a delay
+      setTimeout(() => setProgress(0), 2000);
     }
   };
 
-  return { exportReport, loading, error };
+  return {
+    exportReport,
+    loading,
+    error,
+    progress
+  };
+};
+
+// Enhanced report generation hook with progress tracking
+export const useReportGeneration = () => {
+  const [generatingReports, setGeneratingReports] = useState([]);
+  const [error, setError] = useState(null);
+
+  const generateReportWithTracking = async (reportData) => {
+    const reportId = `temp-${Date.now()}`;
+    
+    // Add to generating reports list
+    const newReport = {
+      id: reportId,
+      reportName: reportData.reportName,
+      reportType: reportData.reportType,
+      status: 'processing',
+      progress: 0,
+      message: 'Initializing report generation...'
+    };
+    
+    setGeneratingReports(prev => [...prev, newReport]);
+    setError(null);
+
+    try {
+      const token = await tokenStorage.getAccessToken();
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      // Update progress
+      updateReportProgress(reportId, 25, 'Collecting data...');
+
+      // Generate the report
+      const result = await reportService.generateReport(reportData);
+      
+      updateReportProgress(reportId, 75, 'Processing report...');
+
+      // Simulate completion delay for UX
+      setTimeout(() => {
+        updateReportProgress(reportId, 100, 'Report generated successfully!');
+        
+        // Remove from generating list after a delay
+        setTimeout(() => {
+          setGeneratingReports(prev => prev.filter(r => r.id !== reportId));
+        }, 2000);
+      }, 1000);
+
+      return result;
+
+    } catch (error) {
+      console.error('Report generation error:', error);
+      
+      // Update report status to failed
+      setGeneratingReports(prev => 
+        prev.map(r => 
+          r.id === reportId 
+            ? { ...r, status: 'failed', message: 'Generation failed', progress: 0 }
+            : r
+        )
+      );
+      
+      setError(error.message || 'Failed to generate report');
+      
+      // Remove failed report after delay
+      setTimeout(() => {
+        setGeneratingReports(prev => prev.filter(r => r.id !== reportId));
+      }, 5000);
+      
+      throw error;
+    }
+  };
+
+  const updateReportProgress = (reportId, progress, message) => {
+    setGeneratingReports(prev => 
+      prev.map(report => 
+        report.id === reportId 
+          ? { ...report, progress, message }
+          : report
+      )
+    );
+  };
+
+  return {
+    generatingReports,
+    generateReportWithTracking,
+    error
+  };
 };
 
 // Utility hook for period management

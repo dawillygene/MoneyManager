@@ -14,6 +14,8 @@ import { useCurrencyFormatter, useDateFormatter } from '../hooks/useDashboard';
 const Reports = () => {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [activeReportType, setActiveReportType] = useState(null);
+  const [selectedFormat, setSelectedFormat] = useState('pdf');
+  const [downloadingReports, setDownloadingReports] = useState(new Set());
   
   // Period management
   const { 
@@ -40,7 +42,7 @@ const Reports = () => {
     generateReportWithTracking 
   } = useReportGeneration();
 
-  const { exportReport, loading: exportLoading } = useReportExport();
+  const { exportReport, loading: exportLoading, progress: exportProgress } = useReportExport();
 
   // Individual report data hooks
   const { data: expenseData, loading: expenseLoading } = useExpenseAnalysis(getPeriodParams());
@@ -93,33 +95,47 @@ const Reports = () => {
   // Handle report export
   const handleExportReport = async () => {
     try {
-      await exportReport({
+      const result = await exportReport({
         reportType: 'comprehensive',
         dateRange: period === 'custom' ? {
           startDate: customRange.startDate,
           endDate: customRange.endDate
         } : undefined,
         period: period !== 'custom' ? period : undefined,
-        format: 'pdf',
+        format: selectedFormat,
         dataLevel: 'detailed',
         includeMetadata: true
       });
+      
+      if (result.success) {
+        console.log(`Report exported successfully: ${result.filename} (${result.fileSize} bytes)`);
+      }
     } catch (error) {
       console.error('Export failed:', error);
     }
   };
 
   // Handle report download
-  const handleDownloadReport = async (reportId) => {
+  const handleDownloadReport = async (reportId, format = 'pdf') => {
+    setDownloadingReports(prev => new Set([...prev, reportId]));
+    
     try {
-      const result = await downloadReport(reportId);
+      const result = await downloadReport(reportId, format);
       if (result.success) {
-        // Optional: Show success message
-        console.log('Report downloaded successfully');
+        console.log(`Report downloaded successfully: ${result.filename}`);
+        if (result.fileSize) {
+          const sizeInKB = Math.round(result.fileSize / 1024);
+          console.log(`File size: ${sizeInKB} KB`);
+        }
       }
     } catch (error) {
       console.error('Download failed:', error);
-      // The error is already handled in the hook and will show in the UI
+    } finally {
+      setDownloadingReports(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(reportId);
+        return newSet;
+      });
     }
   };
 
@@ -221,18 +237,29 @@ const Reports = () => {
               </div>
             )}
             
+            <select
+              value={selectedFormat}
+              onChange={(e) => setSelectedFormat(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="pdf">PDF</option>
+              <option value="excel">Excel</option>
+              <option value="csv">CSV</option>
+            </select>
+            
             <button
               onClick={handleExportReport}
               disabled={exportLoading}
-              className="orange-bg text-white rounded-md px-3 py-1 text-sm hover:bg-opacity-90 disabled:opacity-50"
+              className="orange-bg text-white rounded-md px-3 py-1 text-sm hover:bg-opacity-90 disabled:opacity-50 relative"
             >
               {exportLoading ? (
                 <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i> Exporting...
+                  <i className="fas fa-spinner fa-spin mr-2"></i> 
+                  Exporting... {exportProgress > 0 ? `${exportProgress}%` : ''}
                 </>
               ) : (
                 <>
-                  <i className="fas fa-download mr-2"></i> Export Report
+                  <i className="fas fa-download mr-2"></i> Export {selectedFormat.toUpperCase()}
                 </>
               )}
             </button>
@@ -370,13 +397,44 @@ const Reports = () => {
                         </td>
                         <td className="py-3 px-4 text-sm text-center">
                           <div className="flex items-center justify-center space-x-2">
-                            <button 
-                              onClick={() => handleDownloadReport(report.id)}
-                              className="text-blue-500 hover:text-blue-700"
-                              title="Download"
-                            >
-                              <i className="fas fa-download"></i>
-                            </button>
+                            {/* Download dropdown */}
+                            <div className="relative group">
+                              <button 
+                                className={`text-blue-500 hover:text-blue-700 ${downloadingReports.has(report.id) ? 'opacity-50' : ''}`}
+                                title="Download"
+                                disabled={downloadingReports.has(report.id)}
+                              >
+                                {downloadingReports.has(report.id) ? (
+                                  <i className="fas fa-spinner fa-spin"></i>
+                                ) : (
+                                  <i className="fas fa-download"></i>
+                                )}
+                              </button>
+                              {/* Format selection dropdown */}
+                              <div className="absolute right-0 top-6 hidden group-hover:block bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-20">
+                                <button
+                                  onClick={() => handleDownloadReport(report.id, 'pdf')}
+                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                                  disabled={downloadingReports.has(report.id)}
+                                >
+                                  PDF
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadReport(report.id, 'excel')}
+                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                                  disabled={downloadingReports.has(report.id)}
+                                >
+                                  Excel
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadReport(report.id, 'csv')}
+                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                                  disabled={downloadingReports.has(report.id)}
+                                >
+                                  CSV
+                                </button>
+                              </div>
+                            </div>
                             <button 
                               onClick={() => handleDeleteReport(report.id)}
                               className="text-red-500 hover:text-red-700"

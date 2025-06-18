@@ -107,7 +107,7 @@ export const REPORT_ENDPOINTS = {
     LIST: '/reports/list',
     GENERATE: '/reports/generate',
     STATUS: (id) => `/reports/status/${id}`,
-    DOWNLOAD: (id) => `/reports/download/${id}`,
+    DOWNLOAD: (id) => `/reports/download/${id}`, // Format: /reports/download/{reportId}?format={format}
     PREVIEW: (id) => `/reports/preview/${id}`,
     DELETE: (id) => `/reports/${id}`,
     

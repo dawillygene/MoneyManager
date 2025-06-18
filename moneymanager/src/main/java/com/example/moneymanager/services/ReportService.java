@@ -9,11 +9,22 @@ import com.example.moneymanager.repositories.GoalRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+// PDF generation imports
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.*;
+
+// Excel/CSV generation imports
+import org.apache.poi.xssf.usermodel.*;
+import org.apache.poi.ss.usermodel.*;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -181,23 +192,423 @@ public class ReportService {
     }
 
     public Map<String, Object> downloadReport(Long userId, String reportId, String format) {
-        // In real implementation, retrieve actual file from storage
-        byte[] mockFileData = "Mock PDF content".getBytes();
-        String fileName = "financial-report-" + reportId + ".pdf";
-        String contentType = "application/pdf";
-
-        if ("csv".equals(format)) {
-            mockFileData = "Date,Amount,Category\n2025-06-01,1000,Food".getBytes();
-            fileName = "financial-report-" + reportId + ".csv";
-            contentType = "text/csv";
+        try {
+            // Parse reportId to get report type and parameters
+            String reportType = parseReportType(reportId);
+            Map<String, Object> reportData = generateReportData(userId, reportType);
+            
+            byte[] fileData;
+            String fileName;
+            String contentType;
+            
+            switch (format.toLowerCase()) {
+                case "pdf":
+                    fileData = generatePDFReport(reportData, reportType);
+                    fileName = "financial-report-" + reportId + ".pdf";
+                    contentType = "application/pdf";
+                    break;
+                    
+                case "excel":
+                case "xlsx":
+                    fileData = generateExcelReport(reportData, reportType);
+                    fileName = "financial-report-" + reportId + ".xlsx";
+                    contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                    break;
+                    
+                case "csv":
+                    fileData = generateCSVReport(reportData, reportType);
+                    fileName = "financial-report-" + reportId + ".csv";
+                    contentType = "text/csv";
+                    break;
+                    
+                default:
+                    throw new IllegalArgumentException("Unsupported format: " + format);
+            }
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("fileData", fileData);
+            result.put("fileName", fileName);
+            result.put("contentType", contentType);
+            result.put("fileSize", fileData.length);
+            result.put("success", true);
+            
+            return result;
+            
+        } catch (Exception e) {
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("error", "Report generation failed: " + e.getMessage());
+            return errorResult;
         }
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("fileData", mockFileData);
-        result.put("fileName", fileName);
-        result.put("contentType", contentType);
-
-        return result;
+    }
+    
+    private String parseReportType(String reportId) {
+        // Extract report type from reportId (e.g., "expense_analysis_202506_001" -> "expense_analysis")
+        if (reportId.contains("expense_analysis")) return "expense_analysis";
+        if (reportId.contains("income_vs_expenses")) return "income_vs_expenses";
+        if (reportId.contains("budget_progress")) return "budget_progress";
+        if (reportId.contains("savings_report")) return "savings_report";
+        return "comprehensive"; // default
+    }
+    
+    private Map<String, Object> generateReportData(Long userId, String reportType) {
+        LocalDate endDate = LocalDate.now();
+        LocalDate startDate = endDate.minusMonths(1);
+        
+        switch (reportType) {
+            case "expense_analysis":
+                return getExpenseAnalysis(userId, "this-month", null, null, true, "TZS", "category");
+            case "income_vs_expenses":
+                return getIncomeVsExpenses(userId, "this-month", null, null, true, "TZS");
+            case "budget_progress":
+                return getBudgetProgress(userId, "this-month", null, null, true);
+            case "savings_report":
+                return getSavingsAnalysis(userId, "this-month", null, null, true, true);
+            default:
+                return getComprehensiveReport(userId, startDate, endDate);
+        }
+    }
+    
+    private Map<String, Object> getComprehensiveReport(Long userId, LocalDate startDate, LocalDate endDate) {
+        Map<String, Object> report = new HashMap<>();
+        
+        // Get transactions for the period
+        List<Transaction> transactions = transactionRepository.findByUserIdAndDateBetween(userId, startDate, endDate);
+        
+        // Calculate totals
+        BigDecimal totalIncome = transactions.stream()
+            .filter(t -> "income".equals(t.getType()))
+            .map(Transaction::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+        BigDecimal totalExpenses = transactions.stream()
+            .filter(t -> "expense".equals(t.getType()))
+            .map(Transaction::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        report.put("reportTitle", "Comprehensive Financial Report");
+        report.put("dateRange", Map.of("startDate", startDate.toString(), "endDate", endDate.toString()));
+        report.put("totalIncome", totalIncome);
+        report.put("totalExpenses", totalExpenses);
+        report.put("netIncome", totalIncome.subtract(totalExpenses));
+        report.put("transactions", transactions);
+        
+        return report;
+    }
+    
+    private byte[] generatePDFReport(Map<String, Object> reportData, String reportType) throws DocumentException, IOException {
+        Document document = new Document(PageSize.A4);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        PdfWriter.getInstance(document, baos);
+        
+        document.open();
+        
+        // Add title
+        com.itextpdf.text.Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, BaseColor.BLUE);
+        String title = (String) reportData.getOrDefault("reportTitle", "Financial Report");
+        Paragraph titleParagraph = new Paragraph(title, titleFont);
+        titleParagraph.setAlignment(Element.ALIGN_CENTER);
+        document.add(titleParagraph);
+        
+        document.add(new Paragraph(" ")); // Add space
+        
+        // Add date range
+        @SuppressWarnings("unchecked")
+        Map<String, String> dateRange = (Map<String, String>) reportData.get("dateRange");
+        if (dateRange != null) {
+            document.add(new Paragraph("Report Period: " + dateRange.get("startDate") + " to " + dateRange.get("endDate")));
+            document.add(new Paragraph(" "));
+        }
+        
+        // Add financial summary
+        if (reportData.containsKey("totalIncome")) {
+            document.add(new Paragraph("Total Income: " + reportData.get("totalIncome")));
+        }
+        if (reportData.containsKey("totalExpenses")) {
+            document.add(new Paragraph("Total Expenses: " + reportData.get("totalExpenses")));
+        }
+        if (reportData.containsKey("netIncome")) {
+            document.add(new Paragraph("Net Income: " + reportData.get("netIncome")));
+        }
+        
+        document.add(new Paragraph(" "));
+        
+        // Add transactions table if available
+        @SuppressWarnings("unchecked")
+        List<Transaction> transactions = (List<Transaction>) reportData.get("transactions");
+        if (transactions != null && !transactions.isEmpty()) {
+            addTransactionsTableToPDF(document, transactions);
+        }
+        
+        // Add category breakdown if available
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> categoryBreakdown = (List<Map<String, Object>>) reportData.get("categoryBreakdown");
+        if (categoryBreakdown != null && !categoryBreakdown.isEmpty()) {
+            addCategoryBreakdownToPDF(document, categoryBreakdown);
+        }
+        
+        document.close();
+        return baos.toByteArray();
+    }
+    
+    private void addTransactionsTableToPDF(Document document, List<Transaction> transactions) throws DocumentException {
+        document.add(new Paragraph("Transaction Details:", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        document.add(new Paragraph(" "));
+        
+        PdfPTable table = new PdfPTable(4); // 4 columns: Date, Description, Category, Amount
+        table.setWidthPercentage(100);
+        table.setWidths(new float[]{20, 40, 20, 20});
+        
+        // Add headers
+        com.itextpdf.text.Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        table.addCell(new PdfPCell(new Phrase("Date", headerFont)));
+        table.addCell(new PdfPCell(new Phrase("Description", headerFont)));
+        table.addCell(new PdfPCell(new Phrase("Category", headerFont)));
+        table.addCell(new PdfPCell(new Phrase("Amount", headerFont)));
+        
+        // Add transaction data
+        for (Transaction transaction : transactions.stream().limit(50).collect(Collectors.toList())) { // Limit to first 50
+            table.addCell(transaction.getDate().toString());
+            table.addCell(transaction.getDescription() != null ? transaction.getDescription() : "");
+            table.addCell(transaction.getCategory() != null ? transaction.getCategory() : "");
+            table.addCell(transaction.getAmount().toString());
+        }
+        
+        document.add(table);
+        
+        if (transactions.size() > 50) {
+            document.add(new Paragraph("... and " + (transactions.size() - 50) + " more transactions"));
+        }
+    }
+    
+    private void addCategoryBreakdownToPDF(Document document, List<Map<String, Object>> categoryBreakdown) throws DocumentException {
+        document.add(new Paragraph(" "));
+        document.add(new Paragraph("Category Breakdown:", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        document.add(new Paragraph(" "));
+        
+        PdfPTable table = new PdfPTable(3); // 3 columns: Category, Amount, Percentage
+        table.setWidthPercentage(100);
+        table.setWidths(new float[]{40, 30, 30});
+        
+        // Add headers
+        com.itextpdf.text.Font headerFont2 = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
+        table.addCell(new PdfPCell(new Phrase("Category", headerFont2)));
+        table.addCell(new PdfPCell(new Phrase("Amount", headerFont2)));
+        table.addCell(new PdfPCell(new Phrase("Percentage", headerFont2)));
+        
+        // Add category data
+        for (Map<String, Object> category : categoryBreakdown) {
+            table.addCell((String) category.getOrDefault("category", "Unknown"));
+            table.addCell(category.getOrDefault("amount", "0").toString());
+            table.addCell(category.getOrDefault("percentage", "0").toString() + "%");
+        }
+        
+        document.add(table);
+    }
+    
+    private byte[] generateExcelReport(Map<String, Object> reportData, String reportType) throws IOException {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Financial Report");
+        
+        // Create styles
+        CellStyle headerStyle = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        headerFont.setFontHeightInPoints((short) 12);
+        headerStyle.setFont(headerFont);
+        
+        CellStyle titleStyle = workbook.createCellStyle();
+        org.apache.poi.ss.usermodel.Font titleFont = workbook.createFont();
+        titleFont.setBold(true);
+        titleFont.setFontHeightInPoints((short) 16);
+        titleStyle.setFont(titleFont);
+        
+        int rowNum = 0;
+        
+        // Add title
+        Row titleRow = sheet.createRow(rowNum++);
+        Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue((String) reportData.getOrDefault("reportTitle", "Financial Report"));
+        titleCell.setCellStyle(titleStyle);
+        
+        rowNum++; // Empty row
+        
+        // Add date range
+        @SuppressWarnings("unchecked")
+        Map<String, String> dateRange = (Map<String, String>) reportData.get("dateRange");
+        if (dateRange != null) {
+            Row dateRow = sheet.createRow(rowNum++);
+            dateRow.createCell(0).setCellValue("Report Period:");
+            dateRow.createCell(1).setCellValue(dateRange.get("startDate") + " to " + dateRange.get("endDate"));
+        }
+        
+        rowNum++; // Empty row
+        
+        // Add summary
+        if (reportData.containsKey("totalIncome")) {
+            Row incomeRow = sheet.createRow(rowNum++);
+            incomeRow.createCell(0).setCellValue("Total Income:");
+            incomeRow.createCell(1).setCellValue(reportData.get("totalIncome").toString());
+        }
+        
+        if (reportData.containsKey("totalExpenses")) {
+            Row expenseRow = sheet.createRow(rowNum++);
+            expenseRow.createCell(0).setCellValue("Total Expenses:");
+            expenseRow.createCell(1).setCellValue(reportData.get("totalExpenses").toString());
+        }
+        
+        if (reportData.containsKey("netIncome")) {
+            Row netRow = sheet.createRow(rowNum++);
+            netRow.createCell(0).setCellValue("Net Income:");
+            netRow.createCell(1).setCellValue(reportData.get("netIncome").toString());
+        }
+        
+        rowNum += 2; // Empty rows
+        
+        // Add transactions table
+        @SuppressWarnings("unchecked")
+        List<Transaction> transactions = (List<Transaction>) reportData.get("transactions");
+        if (transactions != null && !transactions.isEmpty()) {
+            rowNum = addTransactionsTableToExcel(sheet, transactions, rowNum, headerStyle);
+        }
+        
+        // Add category breakdown
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> categoryBreakdown = (List<Map<String, Object>>) reportData.get("categoryBreakdown");
+        if (categoryBreakdown != null && !categoryBreakdown.isEmpty()) {
+            addCategoryBreakdownToExcel(sheet, categoryBreakdown, rowNum + 2, headerStyle);
+        }
+        
+        // Auto-size columns
+        for (int i = 0; i < 5; i++) {
+            sheet.autoSizeColumn(i);
+        }
+        
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        workbook.write(baos);
+        workbook.close();
+        
+        return baos.toByteArray();
+    }
+    
+    private int addTransactionsTableToExcel(XSSFSheet sheet, List<Transaction> transactions, int startRow, CellStyle headerStyle) {
+        Row headerRow = sheet.createRow(startRow++);
+        headerRow.createCell(0).setCellValue("Date");
+        headerRow.createCell(1).setCellValue("Description");
+        headerRow.createCell(2).setCellValue("Category");
+        headerRow.createCell(3).setCellValue("Type");
+        headerRow.createCell(4).setCellValue("Amount");
+        
+        // Apply header style
+        for (int i = 0; i < 5; i++) {
+            headerRow.getCell(i).setCellStyle(headerStyle);
+        }
+        
+        // Add transaction data
+        for (Transaction transaction : transactions.stream().limit(1000).collect(Collectors.toList())) { // Limit to 1000 for Excel
+            Row row = sheet.createRow(startRow++);
+            row.createCell(0).setCellValue(transaction.getDate().toString());
+            row.createCell(1).setCellValue(transaction.getDescription() != null ? transaction.getDescription() : "");
+            row.createCell(2).setCellValue(transaction.getCategory() != null ? transaction.getCategory() : "");
+            row.createCell(3).setCellValue(transaction.getType() != null ? transaction.getType() : "");
+            row.createCell(4).setCellValue(transaction.getAmount().doubleValue());
+        }
+        
+        return startRow;
+    }
+    
+    private void addCategoryBreakdownToExcel(XSSFSheet sheet, List<Map<String, Object>> categoryBreakdown, int startRow, CellStyle headerStyle) {
+        Row titleRow = sheet.createRow(startRow++);
+        titleRow.createCell(0).setCellValue("Category Breakdown");
+        titleRow.getCell(0).setCellStyle(headerStyle);
+        
+        startRow++; // Empty row
+        
+        Row headerRow = sheet.createRow(startRow++);
+        headerRow.createCell(0).setCellValue("Category");
+        headerRow.createCell(1).setCellValue("Amount");
+        headerRow.createCell(2).setCellValue("Percentage");
+        
+        // Apply header style
+        for (int i = 0; i < 3; i++) {
+            headerRow.getCell(i).setCellStyle(headerStyle);
+        }
+        
+        // Add category data
+        for (Map<String, Object> category : categoryBreakdown) {
+            Row row = sheet.createRow(startRow++);
+            row.createCell(0).setCellValue((String) category.getOrDefault("category", "Unknown"));
+            row.createCell(1).setCellValue(Double.parseDouble(category.getOrDefault("amount", "0").toString()));
+            row.createCell(2).setCellValue(Double.parseDouble(category.getOrDefault("percentage", "0").toString()));
+        }
+    }
+    
+    private byte[] generateCSVReport(Map<String, Object> reportData, String reportType) {
+        StringBuilder csv = new StringBuilder();
+        
+        // Add title and summary
+        String title = (String) reportData.getOrDefault("reportTitle", "Financial Report");
+        csv.append(title).append("\n\n");
+        
+        @SuppressWarnings("unchecked")
+        Map<String, String> dateRange = (Map<String, String>) reportData.get("dateRange");
+        if (dateRange != null) {
+            csv.append("Report Period:,").append(dateRange.get("startDate"))
+               .append(" to ").append(dateRange.get("endDate")).append("\n\n");
+        }
+        
+        // Add summary data
+        if (reportData.containsKey("totalIncome")) {
+            csv.append("Total Income:,").append(reportData.get("totalIncome")).append("\n");
+        }
+        if (reportData.containsKey("totalExpenses")) {
+            csv.append("Total Expenses:,").append(reportData.get("totalExpenses")).append("\n");
+        }
+        if (reportData.containsKey("netIncome")) {
+            csv.append("Net Income:,").append(reportData.get("netIncome")).append("\n");
+        }
+        
+        csv.append("\n");
+        
+        // Add transactions
+        @SuppressWarnings("unchecked")
+        List<Transaction> transactions = (List<Transaction>) reportData.get("transactions");
+        if (transactions != null && !transactions.isEmpty()) {
+            csv.append("Transactions:\n");
+            csv.append("Date,Description,Category,Type,Amount\n");
+            
+            for (Transaction transaction : transactions) {
+                csv.append(transaction.getDate().toString()).append(",")
+                   .append(escapeCSV(transaction.getDescription())).append(",")
+                   .append(escapeCSV(transaction.getCategory())).append(",")
+                   .append(escapeCSV(transaction.getType())).append(",")
+                   .append(transaction.getAmount()).append("\n");
+            }
+        }
+        
+        // Add category breakdown
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> categoryBreakdown = (List<Map<String, Object>>) reportData.get("categoryBreakdown");
+        if (categoryBreakdown != null && !categoryBreakdown.isEmpty()) {
+            csv.append("\nCategory Breakdown:\n");
+            csv.append("Category,Amount,Percentage\n");
+            
+            for (Map<String, Object> category : categoryBreakdown) {
+                csv.append(escapeCSV((String) category.getOrDefault("category", "Unknown"))).append(",")
+                   .append(category.getOrDefault("amount", "0")).append(",")
+                   .append(category.getOrDefault("percentage", "0")).append("%\n");
+            }
+        }
+        
+        return csv.toString().getBytes();
+    }
+    
+    private String escapeCSV(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 
     public Map<String, Object> getReportsList(Long userId, int page, int limit, String sortBy, String sortOrder,
@@ -331,6 +742,66 @@ public class ReportService {
         return cashFlow;
     }
 
+    public Map<String, Object> getBudgetProgress(Long userId, String period, String startDate, String endDate, boolean includeDetails) {
+        Map<String, LocalDate> dateRange = parseDateRange(period, startDate, endDate);
+        LocalDate start = dateRange.get("start");
+        LocalDate end = dateRange.get("end");
+
+        List<Budget> budgets = budgetRepository.findBudgetsByUserIdAndDateRange(userId, start, end);
+        List<Transaction> transactions = transactionRepository.findByUserIdAndDateBetween(userId, start, end);
+
+        Map<String, Object> progress = new HashMap<>();
+        progress.put("period", period);
+        progress.put("dateRange", Map.of("startDate", start.toString(), "endDate", end.toString()));
+
+        // Calculate overall progress
+        BigDecimal totalBudgeted = budgets.stream()
+            .map(Budget::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalSpent = transactions.stream()
+            .filter(t -> "expense".equals(t.getType()))
+            .map(Transaction::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        progress.put("totalBudgeted", totalBudgeted);
+        progress.put("totalSpent", totalSpent);
+        progress.put("remainingBudget", totalBudgeted.subtract(totalSpent));
+        
+        BigDecimal progressPercentage = totalBudgeted.compareTo(BigDecimal.ZERO) > 0 
+            ? totalSpent.divide(totalBudgeted, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+            : BigDecimal.ZERO;
+        progress.put("progressPercentage", progressPercentage);
+
+        if (includeDetails) {
+            List<Map<String, Object>> budgetDetails = new ArrayList<>();
+            for (Budget budget : budgets) {
+                Map<String, Object> detail = new HashMap<>();
+                detail.put("id", budget.getId());
+                detail.put("category", budget.getCategory());
+                detail.put("budgetAmount", budget.getAmount());
+                
+                BigDecimal categorySpent = transactions.stream()
+                    .filter(t -> "expense".equals(t.getType()) && budget.getCategory().equals(t.getCategory()))
+                    .map(Transaction::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                
+                detail.put("spent", categorySpent);
+                detail.put("remaining", budget.getAmount().subtract(categorySpent));
+                
+                BigDecimal categoryProgress = budget.getAmount().compareTo(BigDecimal.ZERO) > 0
+                    ? categorySpent.divide(budget.getAmount(), 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+                    : BigDecimal.ZERO;
+                detail.put("progressPercentage", categoryProgress);
+                
+                budgetDetails.add(detail);
+            }
+            progress.put("budgetDetails", budgetDetails);
+        }
+
+        return progress;
+    }
+    
     // Existing methods (keeping for backward compatibility)
     public Map<String, Object> getMonthlyReport(Long userId, int year, int month) {
         LocalDate startDate = LocalDate.of(year, month, 1);

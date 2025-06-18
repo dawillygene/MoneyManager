@@ -429,13 +429,85 @@ export class ReportService {
         return response.data;
     }
 
-    async downloadReport(reportId, format = null) {
-        const params = format ? { format } : {};
-        const response = await api.get(REPORT_ENDPOINTS.DOWNLOAD(reportId), {
-            params,
-            responseType: 'blob'
-        });
-        return response.data;
+    async downloadReport(reportId, format = 'pdf') {
+        try {
+            // Validate format
+            const validFormats = ['pdf', 'excel', 'xlsx', 'csv'];
+            if (!validFormats.includes(format.toLowerCase())) {
+                throw new Error('INVALID_FORMAT');
+            }
+
+            const params = { format: format.toLowerCase() };
+            const response = await api.get(REPORT_ENDPOINTS.DOWNLOAD(reportId), {
+                params,
+                responseType: 'blob'
+            });
+
+            // Extract metadata from response headers
+            const contentDisposition = response.headers['content-disposition'] || response.headers['Content-Disposition'];
+            const contentLength = response.headers['content-length'] || response.headers['Content-Length'];
+            const fileSize = response.headers['x-file-size'] || response.headers['X-File-Size'];
+
+            // Extract filename from Content-Disposition header
+            let filename = `financial-report-${reportId}.${format}`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/["']/g, '');
+                }
+            }
+
+            return {
+                blob: response.data,
+                filename,
+                fileSize: fileSize || contentLength,
+                contentType: response.headers['content-type'] || response.headers['Content-Type']
+            };
+        } catch (error) {
+            // Map specific error codes from API documentation
+            if (error.response?.data) {
+                try {
+                    // Try to parse error response
+                    const errorText = await error.response.data.text();
+                    const errorObj = JSON.parse(errorText);
+                    
+                    // Map API error codes to user-friendly messages
+                    const errorMessage = this.mapDownloadErrorCode(errorObj.code, errorObj.message);
+                    const mappedError = new Error(errorMessage);
+                    mappedError.code = errorObj.code;
+                    mappedError.originalError = error;
+                    throw mappedError;
+                } catch (parseError) {
+                    // If we can't parse the error, use the original error
+                    console.warn('Could not parse error response:', parseError);
+                }
+            }
+
+            // Handle network and other errors
+            if (!error.response) {
+                throw new Error('Network error: Please check your connection and try again.');
+            } else if (error.response.status === 404) {
+                throw new Error('REPORT_NOT_FOUND');
+            } else if (error.response.status === 401) {
+                throw new Error('Authentication required. Please log in again.');
+            } else if (error.response.status === 403) {
+                throw new Error('Access denied. You may not have permission to download this report.');
+            } else {
+                throw new Error('REPORT_DOWNLOAD_FAILED');
+            }
+        }
+    }
+
+    // Helper method to map API error codes to user-friendly messages
+    mapDownloadErrorCode(code, originalMessage) {
+        const errorMap = {
+            'REPORT_GENERATION_FAILED': 'Failed to generate the report. Please try again.',
+            'REPORT_DOWNLOAD_FAILED': 'Failed to download the report. Please try again.',
+            'INVALID_FORMAT': 'The selected file format is not supported. Please choose PDF, Excel, or CSV.',
+            'REPORT_NOT_FOUND': 'Report not found. It may have been deleted or expired.'
+        };
+
+        return errorMap[code] || originalMessage || 'An unknown error occurred while downloading the report.';
     }
 
     async previewReport(reportId) {
@@ -470,6 +542,59 @@ export class ReportService {
             responseType: 'blob'
         });
         return response.data;
+    }
+
+    // Helper methods for report ID generation and management
+    generateReportId(reportType, dateRange = null) {
+        // Generate report ID in format: {type}_YYYYMM_001
+        const typeMap = {
+            'expense-analysis': 'expense_analysis',
+            'income-vs-expenses': 'income_vs_expenses',
+            'budget-performance': 'budget_progress',
+            'savings-report': 'savings_report',
+            'comprehensive': 'comprehensive'
+        };
+
+        const mappedType = typeMap[reportType] || reportType.replace('-', '_');
+        
+        // Use provided date range or current date
+        let yearMonth;
+        if (dateRange && dateRange.startDate) {
+            const date = new Date(dateRange.startDate);
+            yearMonth = `${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        } else {
+            const now = new Date();
+            yearMonth = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+        }
+
+        // Generate sequence number (in real implementation, this would come from backend)
+        const sequence = '001';
+        
+        return `${mappedType}_${yearMonth}_${sequence}`;
+    }
+
+    validateReportId(reportId) {
+        // Validate report ID format: {type}_YYYYMM_001
+        const pattern = /^[a-z_]+_\d{6}_\d{3}$/;
+        return pattern.test(reportId);
+    }
+
+    parseReportId(reportId) {
+        if (!this.validateReportId(reportId)) {
+            throw new Error('Invalid report ID format');
+        }
+
+        const parts = reportId.split('_');
+        const sequence = parts.pop();
+        const yearMonth = parts.pop();
+        const type = parts.join('_');
+
+        return {
+            type,
+            year: parseInt(yearMonth.substring(0, 4)),
+            month: parseInt(yearMonth.substring(4, 6)),
+            sequence: parseInt(sequence)
+        };
     }
 
     // Helper methods for time periods
