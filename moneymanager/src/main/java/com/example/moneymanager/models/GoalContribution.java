@@ -1,5 +1,6 @@
 package com.example.moneymanager.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,6 +15,7 @@ public class GoalContribution {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "goal_id", nullable = false)
+    @JsonIgnore
     private Goal goal;
 
     @Column(nullable = false, precision = 12, scale = 2)
@@ -117,5 +119,10 @@ public class GoalContribution {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    // Helper method to get goal ID for JSON serialization
+    public Long getGoalId() {
+        return goal != null ? goal.getId() : null;
     }
 }

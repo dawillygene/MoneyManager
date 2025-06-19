@@ -565,6 +565,78 @@ public class GoalController {
         }
     }
 
+    @GetMapping("/analytics")
+    public ResponseEntity<?> getGoalAnalytics(@RequestHeader("Authorization") String authorizationHeader,
+                                             @RequestParam(required = false) String startDate,
+                                             @RequestParam(required = false) String endDate) {
+        try {
+            Long userId = getUserIdFromToken(authorizationHeader);
+            
+            LocalDate start = startDate != null ? LocalDate.parse(startDate) : LocalDate.now().minusYears(1);
+            LocalDate end = endDate != null ? LocalDate.parse(endDate) : LocalDate.now();
+            
+            Map<String, Object> analytics = goalService.getGoalAnalytics(userId, start, end);
+            
+            return ResponseEntity.ok(analytics);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", true);
+            errorResponse.put("message", "Failed to retrieve analytics: " + e.getMessage());
+            errorResponse.put("code", "ANALYTICS_RETRIEVAL_FAILED");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<?> updateGoalStatus(@RequestHeader("Authorization") String authorizationHeader,
+                                             @PathVariable Long id,
+                                             @RequestBody Map<String, Object> requestBody) {
+        try {
+            Long userId = getUserIdFromToken(authorizationHeader);
+            
+            if (!requestBody.containsKey("status")) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", true);
+                errorResponse.put("message", "Status field is required");
+                errorResponse.put("code", "MISSING_STATUS_FIELD");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            String newStatus = (String) requestBody.get("status");
+            String reason = (String) requestBody.get("reason");
+            
+            Goal updatedGoal = goalService.updateGoalStatus(id, newStatus, reason, userId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Goal status updated successfully");
+            response.put("goal", buildGoalResponse(updatedGoal));
+            
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", true);
+            errorResponse.put("message", e.getMessage());
+            
+            if (e.getMessage().contains("not found")) {
+                errorResponse.put("code", "GOAL_NOT_FOUND");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            } else if (e.getMessage().contains("Invalid status")) {
+                errorResponse.put("code", "INVALID_STATUS");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+            }
+            
+            errorResponse.put("code", "STATUS_UPDATE_FAILED");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", true);
+            errorResponse.put("message", "Failed to update goal status: " + e.getMessage());
+            errorResponse.put("code", "STATUS_UPDATE_FAILED");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
     // Helper method to build goal response with computed properties
     private Map<String, Object> buildGoalResponse(Goal goal) {
         Map<String, Object> goalMap = new HashMap<>();

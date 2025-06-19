@@ -13,9 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.*;
 
 @Service
 @Transactional
@@ -433,5 +438,239 @@ public class GoalService {
         }
         
         return categories;
+    }
+    
+    /**
+     * Get advanced analytics for goals including trends, projections, and insights
+     */
+    public Map<String, Object> getGoalAnalytics(Long userId, LocalDate startDate, LocalDate endDate) {
+        Map<String, Object> analytics = new HashMap<>();
+        
+        // Monthly savings trend
+        List<Map<String, Object>> monthlySavings = calculateMonthlySavings(userId, startDate, endDate);
+        analytics.put("monthlySavings", monthlySavings);
+        
+        // Category distribution
+        List<Map<String, Object>> categoryDistribution = calculateCategoryDistribution(userId);
+        analytics.put("categoryDistribution", categoryDistribution);
+        
+        // Completion rate statistics
+        Map<String, Object> completionRate = calculateCompletionRate(userId);
+        analytics.put("completionRate", completionRate);
+        
+        // Average progress across all goals
+        Double averageProgress = goalRepository.averageProgressByUserId(userId);
+        analytics.put("averageProgress", averageProgress != null ? averageProgress : 0.0);
+        
+        // Projected completions by month
+        List<Map<String, Object>> projectedCompletions = calculateProjectedCompletions(userId);
+        analytics.put("projectedCompletions", projectedCompletions);
+        
+        // Performance insights
+        Map<String, Object> insights = generateInsights(userId);
+        analytics.put("insights", insights);
+        
+        return analytics;
+    }
+    
+    /**
+     * Update goal status with reason tracking
+     */
+    @Transactional
+    public Goal updateGoalStatus(Long goalId, String newStatus, String reason, Long userId) {
+        Optional<Goal> goalOpt = goalRepository.findByIdAndUserId(goalId, userId);
+        if (goalOpt.isEmpty()) {
+            throw new RuntimeException("Goal not found");
+        }
+        
+        Goal goal = goalOpt.get();
+        
+        // Validate status
+        List<String> validStatuses = Arrays.asList("active", "completed", "paused", "cancelled", "pending");
+        if (!validStatuses.contains(newStatus)) {
+            throw new RuntimeException("Invalid status. Valid statuses: " + String.join(", ", validStatuses));
+        }
+        
+        String previousStatus = goal.getStatus();
+        goal.setStatus(newStatus);
+        
+        // Set appropriate timestamps based on status
+        LocalDateTime now = LocalDateTime.now();
+        switch (newStatus) {
+            case "completed":
+                goal.setCompletedAt(now);
+                break;
+            case "paused":
+                goal.setPausedAt(now);
+                break;
+            case "cancelled":
+                goal.setCancelledAt(now);
+                break;
+            case "active":
+                // Clear pause/cancel timestamps when reactivating
+                goal.setPausedAt(null);
+                goal.setCancelledAt(null);
+                break;
+        }
+        
+        // Log the status change if reason is provided
+        if (reason != null && !reason.trim().isEmpty()) {
+            // You could implement a status change log here
+            // For now, we'll just update the goal
+        }
+        
+        return goalRepository.save(goal);
+    }
+    
+    // Helper methods for analytics
+    
+    private List<Map<String, Object>> calculateMonthlySavings(Long userId, LocalDate startDate, LocalDate endDate) {
+        List<Map<String, Object>> monthlySavings = new ArrayList<>();
+        
+        // Get all contributions in date range grouped by month
+        List<GoalContribution> contributions = goalContributionRepository.findByGoal_UserIdAndDateBetween(
+            userId, startDate, endDate);
+        
+        // Group by month and calculate totals
+        Map<String, BigDecimal> monthlyTotals = contributions.stream()
+            .collect(groupingBy(
+                contribution -> contribution.getDate().toString().substring(0, 7), // YYYY-MM format
+                reducing(BigDecimal.ZERO, GoalContribution::getAmount, BigDecimal::add)
+            ));
+        
+        // Convert to response format
+        monthlyTotals.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> {
+                Map<String, Object> monthData = new HashMap<>();
+                monthData.put("month", entry.getKey());
+                monthData.put("amount", entry.getValue());
+                monthlySavings.add(monthData);
+            });
+        
+        return monthlySavings;
+    }
+    
+    private List<Map<String, Object>> calculateCategoryDistribution(Long userId) {
+        List<Object[]> categoryStats = goalRepository.getCategoryStatsByUserId(userId);
+        BigDecimal totalTargetAmount = goalRepository.sumTotalTargetAmountByUserId(userId);
+        
+        List<Map<String, Object>> distribution = new ArrayList<>();
+        
+        for (Object[] stats : categoryStats) {
+            String category = (String) stats[0];
+            Long count = (Long) stats[1];
+            BigDecimal targetAmount = (BigDecimal) stats[2];
+            BigDecimal currentAmount = (BigDecimal) stats[3];
+            
+            Map<String, Object> categoryData = new HashMap<>();
+            categoryData.put("category", category);
+            categoryData.put("count", count);
+            categoryData.put("targetAmount", targetAmount);
+            categoryData.put("currentAmount", currentAmount);
+            
+            // Calculate percentage of total
+            double percentage = totalTargetAmount.compareTo(BigDecimal.ZERO) > 0 
+                ? targetAmount.divide(totalTargetAmount, 4, RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100)).doubleValue()
+                : 0.0;
+            categoryData.put("percentage", percentage);
+            
+            distribution.add(categoryData);
+        }
+        
+        return distribution;
+    }
+    
+    private Map<String, Object> calculateCompletionRate(Long userId) {
+        Long totalGoals = goalRepository.countTotalGoalsByUserId(userId);
+        Long completedGoals = goalRepository.countCompletedGoalsByUserId(userId);
+        
+        Map<String, Object> completionRate = new HashMap<>();
+        completionRate.put("completed", completedGoals);
+        completionRate.put("total", totalGoals);
+        completionRate.put("percentage", totalGoals > 0 
+            ? (completedGoals.doubleValue() / totalGoals.doubleValue()) * 100 
+            : 0.0);
+        
+        return completionRate;
+    }
+    
+    private List<Map<String, Object>> calculateProjectedCompletions(Long userId) {
+        List<Goal> activeGoals = goalRepository.findByUserIdAndStatus(userId, "active");
+        List<Map<String, Object>> projections = new ArrayList<>();
+        
+        // Group goals by projected completion month
+        Map<String, Long> monthlyCompletions = activeGoals.stream()
+            .filter(goal -> goal.getProjectedCompletionDate() != null)
+            .collect(groupingBy(
+                goal -> goal.getProjectedCompletionDate().toString().substring(0, 7), // YYYY-MM
+                counting()
+            ));
+        
+        // Convert to response format and sort by month
+        monthlyCompletions.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(entry -> {
+                Map<String, Object> projection = new HashMap<>();
+                projection.put("month", entry.getKey());
+                projection.put("count", entry.getValue());
+                projections.add(projection);
+            });
+        
+        return projections;
+    }
+    
+    private Map<String, Object> generateInsights(Long userId) {
+        Map<String, Object> insights = new HashMap<>();
+        
+        // Count goals that are on track vs off track
+        List<Goal> onTrackGoals = goalRepository.findGoalsOnTrackByUserId(userId);
+        List<Goal> allActiveGoals = goalRepository.findByUserIdAndStatus(userId, "active");
+        
+        int onTrackCount = onTrackGoals.size();
+        int totalActiveCount = allActiveGoals.size();
+        int offTrackCount = totalActiveCount - onTrackCount;
+        
+        insights.put("goalsOnTrack", onTrackCount);
+        insights.put("goalsOffTrack", offTrackCount);
+        insights.put("totalActiveGoals", totalActiveCount);
+        
+        // Calculate average days to completion for completed goals
+        List<Goal> completedGoals = goalRepository.findByUserIdAndStatus(userId, "completed");
+        if (!completedGoals.isEmpty()) {
+            double avgDaysToCompletion = completedGoals.stream()
+                .filter(goal -> goal.getCreatedAt() != null && goal.getCompletedAt() != null)
+                .mapToLong(goal -> ChronoUnit.DAYS.between(
+                    goal.getCreatedAt().toLocalDate(), 
+                    goal.getCompletedAt().toLocalDate()))
+                .average()
+                .orElse(0.0);
+            insights.put("averageDaysToCompletion", avgDaysToCompletion);
+        }
+        
+        // Most successful category (highest completion rate)
+        List<Object[]> categoryStats = goalRepository.getCategoryStatsByUserId(userId);
+        String mostSuccessfulCategory = null;
+        double highestCompletionRate = 0.0;
+        
+        for (Object[] stats : categoryStats) {
+            String category = (String) stats[0];
+            Long categoryCompleted = goalRepository.countByUserIdAndStatus(userId, "completed");
+            Long categoryTotal = (Long) stats[1];
+            
+            if (categoryTotal > 0) {
+                double completionRate = (categoryCompleted.doubleValue() / categoryTotal.doubleValue()) * 100;
+                if (completionRate > highestCompletionRate) {
+                    highestCompletionRate = completionRate;
+                    mostSuccessfulCategory = category;
+                }
+            }
+        }
+        
+        insights.put("mostSuccessfulCategory", mostSuccessfulCategory);
+        insights.put("mostSuccessfulCategoryRate", highestCompletionRate);
+        
+        return insights;
     }
 }

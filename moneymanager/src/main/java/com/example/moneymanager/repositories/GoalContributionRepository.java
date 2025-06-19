@@ -91,4 +91,11 @@ public interface GoalContributionRepository extends JpaRepository<GoalContributi
     Long countContributionsByUserIdAndDateRange(@Param("userId") Long userId,
                                                @Param("startDate") LocalDate startDate,
                                                @Param("endDate") LocalDate endDate);
+    
+    // Contributions by user ID and date range (for analytics)
+    @Query("SELECT gc FROM GoalContribution gc WHERE gc.goal.userId = :userId " +
+           "AND gc.date >= :startDate AND gc.date <= :endDate")
+    List<GoalContribution> findByGoal_UserIdAndDateBetween(@Param("userId") Long userId,
+                                                          @Param("startDate") LocalDate startDate,
+                                                          @Param("endDate") LocalDate endDate);
 }
