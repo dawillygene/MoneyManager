@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   useDashboard, 
@@ -10,9 +10,12 @@ import {
   useCurrencyFormatter,
   useDateFormatter
 } from '../hooks/useDashboard';
+import { goalService } from '../api';
 
 const Dashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('this-month');
+  const [goals, setGoals] = useState([]);
+  const [goalsLoading, setGoalsLoading] = useState(true);
   const { formatCurrency } = useCurrencyFormatter();
   const { getRelativeTime } = useDateFormatter();
   
@@ -28,6 +31,28 @@ const Dashboard = () => {
   const handlePeriodChange = (period) => {
     setSelectedPeriod(period);
   };
+
+  // Fetch goals data
+  useEffect(() => {
+    const fetchGoals = async () => {
+      try {
+        setGoalsLoading(true);
+        const response = await goalService.getAll({ 
+          limit: 4, 
+          sortBy: 'progress', 
+          sortOrder: 'desc' 
+        });
+        setGoals(response.goals || response || []);
+      } catch (err) {
+        console.error('Error fetching goals:', err);
+        setGoals([]);
+      } finally {
+        setGoalsLoading(false);
+      }
+    };
+
+    fetchGoals();
+  }, []);
 
   // Loading state
   if (dashboardLoading || summaryLoading) {
@@ -282,64 +307,163 @@ const Dashboard = () => {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Recent Transactions */}
+          {/* Active Goals */}
           <div className="bg-white rounded-lg shadow p-4 col-span-1">
-            <h3 className="text-lg font-semibold mb-4 navy-text">Recent Activity</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold navy-text">Your Goals</h3>
+              <div className="flex items-center space-x-2">
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                  {goals.filter(g => g.status === 'active').length} Active
+                </span>
+                <Link 
+                  to="/goals" 
+                  className="text-orange-500 hover:text-orange-600 transition-colors"
+                  title="View all goals"
+                >
+                  <i className="fas fa-external-link-alt text-sm"></i>
+                </Link>
+              </div>
+            </div>
+            
             <div className="space-y-3">
-              {transactionsLoading ? (
+              {goalsLoading ? (
                 <div className="flex items-center justify-center h-40">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                 </div>
-              ) : recentTransactions?.transactions && recentTransactions.transactions.length > 0 ? (
+              ) : goals && goals.length > 0 ? (
                 <div className="space-y-3">
-                  {recentTransactions.transactions.slice(0, 5).map((transaction, index) => (
-                    <div key={transaction.id || index} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${
-                          transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'
-                        }`}>
-                          <i className={`fas ${transaction.type === 'income' ? 'fa-arrow-down' : 'fa-arrow-up'}`}></i>
+                  {goals.slice(0, 4).map((goal, index) => {
+                    const progress = ((goal.currentAmount || 0) / (goal.targetAmount || 1)) * 100;
+                    const isCompleted = progress >= 100;
+                    const isNearTarget = progress >= 80 && progress < 100;
+                    const remaining = (goal.targetAmount || 0) - (goal.currentAmount || 0);
+                    const daysLeft = goal.targetDate ? Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0;
+                    
+                    return (
+                      <div 
+                        key={goal.id || index} 
+                        className={`group relative overflow-hidden rounded-xl border-2 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer ${
+                          isCompleted ? 'border-green-300 bg-gradient-to-r from-green-50 to-green-100' :
+                          isNearTarget ? 'border-orange-300 bg-gradient-to-r from-orange-50 to-yellow-50' :
+                          'border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50'
+                        }`}
+                      >
+                        {/* Goal Header */}
+                        <div className="p-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white shadow-sm ${
+                                isCompleted ? 'bg-green-500' :
+                                isNearTarget ? 'bg-orange-500' : 
+                                'bg-blue-500'
+                              }`}>
+                                <i className={`fas ${goal.icon || 'fa-bullseye'} text-sm`}></i>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-semibold text-gray-900 truncate">
+                                  {goal.name || 'Unnamed Goal'}
+                                </h4>
+                                <p className="text-xs text-gray-600">
+                                  {goal.category || 'General'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                isCompleted ? 'bg-green-200 text-green-800' :
+                                isNearTarget ? 'bg-orange-200 text-orange-800' :
+                                'bg-blue-200 text-blue-800'
+                              }`}>
+                                {Math.min(progress, 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Progress Bar */}
+                          <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-500 ${
+                                isCompleted ? 'bg-gradient-to-r from-green-400 to-green-600' :
+                                isNearTarget ? 'bg-gradient-to-r from-orange-400 to-yellow-500' :
+                                'bg-gradient-to-r from-blue-400 to-blue-600'
+                              }`}
+                              style={{ width: `${Math.min(progress, 100)}%` }}
+                            ></div>
+                          </div>
+                          
+                          {/* Goal Details */}
+                          <div className="flex justify-between items-center text-xs">
+                            <div className="flex items-center space-x-1">
+                              <i className="fas fa-coins text-gray-400"></i>
+                              <span className="text-gray-600">
+                                {formatCurrency(goal.currentAmount || 0)}
+                              </span>
+                              <span className="text-gray-400">of</span>
+                              <span className="font-semibold text-gray-800">
+                                {formatCurrency(goal.targetAmount || 0)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Status Footer */}
+                          <div className="mt-2 flex items-center justify-between">
+                            {isCompleted ? (
+                              <div className="flex items-center text-green-600">
+                                <i className="fas fa-check-circle mr-1"></i>
+                                <span className="text-xs font-medium">Goal Achieved!</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center text-gray-500">
+                                <i className="fas fa-target mr-1"></i>
+                                <span className="text-xs">
+                                  {formatCurrency(remaining)} remaining
+                                </span>
+                              </div>
+                            )}
+                            
+                            {daysLeft > 0 && (
+                              <div className={`flex items-center text-xs ${
+                                daysLeft <= 30 ? 'text-red-500' : 
+                                daysLeft <= 90 ? 'text-orange-500' : 
+                                'text-gray-500'
+                              }`}>
+                                <i className="fas fa-calendar mr-1"></i>
+                                <span>{daysLeft} days left</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {transaction.description || transaction.title || 'Transaction'}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {transaction.category || 'Uncategorized'}
-                          </p>
-                        </div>
+                        
+                        {/* Hover Effect Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
                       </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-semibold ${
-                          transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount || 0)}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {getRelativeTime(transaction.date || transaction.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
-                  <div className="mt-3 pt-2 border-t border-gray-100">
+                  <div className="mt-4 pt-3 border-t border-gray-100">
                     <Link 
-                      to="/transactions" 
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium block text-center"
+                      to="/goals" 
+                      className="flex items-center justify-center text-sm text-orange-600 hover:text-orange-800 font-medium transition-colors group"
                     >
-                      View all transactions →
+                      <span>View all goals</span>
+                      <i className="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                     </Link>
                   </div>
                 </div>
               ) : (
                 <div className="text-center text-gray-500 h-40 flex flex-col items-center justify-center">
-                  <i className="fas fa-receipt text-2xl text-gray-300 mb-2"></i>
-                  <span className="text-sm">No recent transactions</span>
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                    <i className="fas fa-bullseye text-2xl text-gray-400"></i>
+                  </div>
+                  <span className="text-sm font-medium">No goals set yet</span>
+                  <p className="text-xs text-gray-400 mb-3 text-center">
+                    Create your first financial goal to start tracking your progress
+                  </p>
                   <Link 
-                    to="/transactions" 
-                    className="text-xs text-blue-600 hover:text-blue-800 mt-2"
+                    to="/goals" 
+                    className="text-xs bg-orange-500 text-white px-3 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
                   >
-                    Add your first transaction
+                    <i className="fas fa-plus mr-1"></i>Create Goal
                   </Link>
                 </div>
               )}
