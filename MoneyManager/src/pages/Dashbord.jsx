@@ -5,17 +5,18 @@ import {
   useFinancialSummary, 
   useExpenseCategories, 
   useCashFlow, 
-  useBudgetProgress, 
   useRecentTransactions,
   useCurrencyFormatter,
   useDateFormatter
 } from '../hooks/useDashboard';
-import { goalService } from '../api';
+import { goalService, budgetService } from '../api';
 
 const Dashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('this-month');
   const [goals, setGoals] = useState([]);
   const [goalsLoading, setGoalsLoading] = useState(true);
+  const [budgets, setBudgets] = useState([]);
+  const [budgetLoading, setBudgetLoading] = useState(true);
   const { formatCurrency } = useCurrencyFormatter();
   const { getRelativeTime } = useDateFormatter();
   
@@ -24,7 +25,6 @@ const Dashboard = () => {
   const { data: financialSummary, loading: summaryLoading } = useFinancialSummary(selectedPeriod);
   const { data: expenseCategories, loading: categoriesLoading } = useExpenseCategories(selectedPeriod);
   const { data: cashFlowData, loading: cashFlowLoading } = useCashFlow(6);
-  const { data: budgetProgress, loading: budgetLoading } = useBudgetProgress(selectedPeriod);
   const { data: recentTransactions, loading: transactionsLoading } = useRecentTransactions(5);
 
   // Handle period change
@@ -38,7 +38,7 @@ const Dashboard = () => {
       try {
         setGoalsLoading(true);
         const response = await goalService.getAll({ 
-          limit: 4, 
+          limit: 2, 
           sortBy: 'progress', 
           sortOrder: 'desc' 
         });
@@ -53,6 +53,29 @@ const Dashboard = () => {
 
     fetchGoals();
   }, []);
+
+  // Fetch budget data using the same service as Budget page
+  useEffect(() => {
+    const fetchBudgets = async () => {
+      try {
+        setBudgetLoading(true);
+        const response = await budgetService.getAll({
+          status: 'active',
+          sortBy: 'progress',
+          sortOrder: 'desc',
+          limit: 10
+        });
+        setBudgets(response.budgets || []);
+      } catch (err) {
+        console.error('Error fetching budgets:', err);
+        setBudgets([]);
+      } finally {
+        setBudgetLoading(false);
+      }
+    };
+
+    fetchBudgets();
+  }, [selectedPeriod]);
 
   // Loading state
   if (dashboardLoading || summaryLoading) {
@@ -332,7 +355,7 @@ const Dashboard = () => {
                 </div>
               ) : goals && goals.length > 0 ? (
                 <div className="space-y-3">
-                  {goals.slice(0, 4).map((goal, index) => {
+                  {goals.slice(0, 2).map((goal, index) => {
                     const progress = ((goal.currentAmount || 0) / (goal.targetAmount || 1)) * 100;
                     const isCompleted = progress >= 100;
                     const isNearTarget = progress >= 80 && progress < 100;
@@ -530,70 +553,181 @@ const Dashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Budget Progress */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold navy-text">Budget Progress</h3>
-              <button className="text-sm text-gray-500 hover:text-gray-700">
-                <i className="fas fa-ellipsis-v"></i>
-              </button>
+          <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold navy-text">Budget Progress</h3>
+                <p className="text-sm text-gray-500 mt-1">Top 3 budgets by usage this period</p>
+              </div>
+              <Link 
+                to="/budgets" 
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <i className="fas fa-eye mr-1.5"></i>
+                View All
+              </Link>
             </div>
 
             {budgetLoading ? (
               <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-3 text-gray-600">Loading budgets...</span>
               </div>
-            ) : budgetProgress?.budgets && budgetProgress.budgets.length > 0 ? (
-              <div className="space-y-4">
-                {budgetProgress.budgets.slice(0, 5).map((budget) => (
-                  <div key={budget.id} className="mb-4">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium">{budget.name}</span>
-                      <span className="text-sm">
-                        {formatCurrency(budget.spent)} / {formatCurrency(budget.amount)}
-                      </span>
-                    </div>
-                    <div className="progress-bar bg-gray-200">
-                      <div 
-                        className={`progress-fill ${
-                          budget.progress > 100 ? 'bg-red-500' : 
-                          budget.progress > 80 ? 'orange-bg' : 
-                          'bg-blue-500'
-                        }`} 
-                        style={{ width: `${Math.min(budget.progress, 100)}%` }}
-                      ></div>
-                    </div>
-                    {budget.progress > 100 && (
-                      <div className="text-xs text-red-500 mt-1">
-                        <i className="fas fa-exclamation-circle mr-1"></i>
-                        You are over this budget by {formatCurrency(budget.spent - budget.amount)}
+            ) : budgets && budgets.length > 0 ? (
+              <div className="space-y-5">
+                {budgets
+                  .slice(0, 3) // Show only top 3
+                  .map((budget, index) => {
+                  const used = budget.spent || 0;
+                  const total = budget.amount || 0;
+                  const percentage = budget.progress || (total > 0 ? (used / total) * 100 : 0);
+                  const remaining = Math.max(0, total - used);
+                  const budgetName = budget.name || budget.category || 'Unnamed Budget';
+                  
+                  return (
+                    <div key={budget.id} className="group hover:bg-gray-50 rounded-xl p-4 transition-all duration-200 border border-gray-100">
+                      {/* Budget Header */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className={`
+                            w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm
+                            ${index === 0 ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                              index === 1 ? 'bg-gradient-to-r from-green-500 to-green-600' :
+                              index === 2 ? 'bg-gradient-to-r from-purple-500 to-purple-600' :
+                              'bg-gradient-to-r from-orange-500 to-orange-600'}
+                          `}>
+                            {budgetName.charAt(0)?.toUpperCase() || 'B'}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {budgetName}
+                            </h4>
+                            <div className="flex items-center space-x-2 text-sm text-gray-500">
+                              <span className="text-blue-600 font-medium">{budget.category}</span>
+                              <span>•</span>
+                              <span>Used: {formatCurrency(used)}</span>
+                              <span>•</span>
+                              <span>Total: {formatCurrency(total)}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`
+                            inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+                            ${budget.isOverBudget ? 'bg-red-100 text-red-800' :
+                              percentage > 80 ? 'bg-orange-100 text-orange-800' :
+                              percentage > 50 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'}
+                          `}>
+                            {percentage.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {budget.isOverBudget ? 
+                              `Over by ${formatCurrency(used - total)}` : 
+                              `${formatCurrency(remaining)} left`
+                            }
+                          </div>
+                        </div>
                       </div>
-                    )}
+
+                      {/* Progress Bar */}
+                      <div className="relative">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                          <div
+                            className={`
+                              h-2.5 rounded-full transition-all duration-500 ease-out
+                              ${budget.isOverBudget ? 'bg-gradient-to-r from-red-500 to-red-600' :
+                                percentage > 80 ? 'bg-gradient-to-r from-orange-500 to-orange-600' :
+                                percentage > 50 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
+                                'bg-gradient-to-r from-green-500 to-green-600'}
+                            `}
+                            style={{ width: `${Math.min(percentage, 100)}%` }}
+                          ></div>
+                        </div>
+                        
+                        <div className="flex justify-between text-xs text-gray-400 mt-1">
+                          <span>0%</span>
+                          <span>50%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+
+                      {/* Status Message */}
+                      {budget.isOverBudget && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-xs text-red-700 flex items-center">
+                            <i className="fas fa-exclamation-triangle mr-2"></i>
+                            Budget exceeded! Consider reviewing your spending in this category.
+                          </p>
+                        </div>
+                      )}
+                      
+                      {percentage > 80 && !budget.isOverBudget && (
+                        <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                          <p className="text-xs text-orange-700 flex items-center">
+                            <i className="fas fa-exclamation-circle mr-2"></i>
+                            Almost at budget limit. Monitor spending carefully.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                
+                {/* Summary Footer */}
+                {budgets.length > 3 && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-sm text-gray-600 text-center">
+                      Showing top 3 budgets by usage. 
+                      <Link to="/budgets" className="text-blue-600 hover:text-blue-800 ml-1 font-medium">
+                        View all {budgets.length} budgets →
+                      </Link>
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
             ) : (
-              <div className="text-center text-gray-500 py-8">
-                No budget data available
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <i className="fas fa-chart-pie text-2xl text-gray-400"></i>
+                </div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No Active Budgets</h4>
+                <p className="text-gray-500 mb-4">Create budgets with spending to see your progress here</p>
+                <Link 
+                  to="/budgets" 
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <i className="fas fa-plus mr-2"></i>
+                  Manage Budgets
+                </Link>
               </div>
             )}
           </div>
 
           {/* Recent Transactions */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold navy-text">Recent Transactions</h3>
-              <a href="#transactions" className="text-sm text-blue-500 hover:underline">
+          <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-xl font-bold navy-text">Recent Transactions</h3>
+                <p className="text-sm text-gray-500 mt-1">Latest financial activities</p>
+              </div>
+              <Link 
+                to="/transactions" 
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              >
+                <i className="fas fa-eye mr-1.5"></i>
                 View All
-              </a>
+              </Link>
             </div>
 
             {transactionsLoading ? (
               <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <span className="ml-3 text-gray-600">Loading transactions...</span>
               </div>
             ) : recentTransactions?.transactions && recentTransactions.transactions.length > 0 ? (
-              <div className="space-y-3">
-                {recentTransactions.transactions.map((transaction) => {
+              <div className="space-y-4">
+                {recentTransactions.transactions.map((transaction, index) => {
                   const isIncome = transaction.type === 'income';
                   const categoryIcons = {
                     'Food & Dining': 'fa-utensils',
@@ -602,35 +736,70 @@ const Dashboard = () => {
                     'Entertainment': 'fa-film',
                     'Shopping': 'fa-shopping-bag',
                     'Healthcare': 'fa-heartbeat',
-                    'Income': 'fa-building'
+                    'Income': 'fa-building',
+                    'Other': 'fa-circle'
                   };
                   
                   return (
-                    <div key={transaction.id} className="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-all">
-                      <div className={`rounded-full p-2 mr-3 ${
-                        isIncome ? 'bg-green-100 text-green-500' : 'bg-red-100 text-red-500'
-                      }`}>
-                        <i className={`fas ${categoryIcons[transaction.category] || 'fa-circle'}`}></i>
-                      </div>
-                      <div className="flex-grow">
-                        <h4 className="text-sm font-medium">{transaction.description}</h4>
-                        <p className="text-xs text-gray-500">{getRelativeTime(transaction.date)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-medium ${
-                          isIncome ? 'text-green-500' : 'text-red-500'
-                        }`}>
-                          {isIncome ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
-                        </p>
-                        <p className="text-xs text-gray-500">{transaction.category}</p>
+                    <div key={transaction.id} className="group hover:bg-gray-50 rounded-xl p-4 transition-all duration-200 border border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`
+                            w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg border-2
+                            ${isIncome ? 'bg-green-500 text-white border-green-600' : 
+                              transaction.category === 'Food & Dining' ? 'bg-orange-500 text-white border-orange-600' :
+                              transaction.category === 'Healthcare' ? 'bg-red-500 text-white border-red-600' :
+                              transaction.category === 'Shopping' ? 'bg-purple-500 text-white border-purple-600' :
+                              transaction.category === 'Transportation' ? 'bg-blue-500 text-white border-blue-600' :
+                              'bg-gray-700 text-white border-gray-800'}
+                          `}>
+                            {transaction.category === 'Food & Dining' ? '🍽️' :
+                             transaction.category === 'Healthcare' ? '🏥' :
+                             transaction.category === 'Shopping' ? '🛍️' :
+                             transaction.category === 'Transportation' ? '🚌' :
+                             isIncome ? '💰' : '💸'}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                              {transaction.description}
+                            </h4>
+                            <div className="flex items-center space-x-2 text-sm text-gray-500">
+                              <span>{getRelativeTime(transaction.date)}</span>
+                              <span>•</span>
+                              <span className="text-blue-600 font-medium">{transaction.category}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`
+                            inline-flex items-center px-2.5 py-1 rounded-full text-sm font-bold
+                            ${isIncome ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
+                          `}>
+                            {isIncome ? '+' : '-'}{formatCurrency(Math.abs(transaction.amount))}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {isIncome ? 'Income' : 'Expense'}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="text-center text-gray-500 py-8">
-                No recent transactions
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <i className="fas fa-receipt text-2xl text-gray-400"></i>
+                </div>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No Recent Transactions</h4>
+                <p className="text-gray-500 mb-4">Your recent transactions will appear here</p>
+                <Link 
+                  to="/transactions" 
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <i className="fas fa-plus mr-2"></i>
+                  Add Transaction
+                </Link>
               </div>
             )}
           </div>

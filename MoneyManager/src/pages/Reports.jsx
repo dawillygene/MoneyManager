@@ -54,7 +54,7 @@ const Reports = () => {
   // Format options
   const formatOptions = [
     { value: 'pdf', label: 'PDF Document', icon: 'fa-file-pdf', color: 'text-red-500' },
-    { value: 'excel', label: 'Excel Spreadsheet', icon: 'fa-file-excel', color: 'text-green-500' },
+    { value: 'xlsx', label: 'Excel Spreadsheet (.xlsx)', icon: 'fa-file-excel', color: 'text-green-500' },
     { value: 'csv', label: 'CSV Data File', icon: 'fa-file-csv', color: 'text-blue-500' }
   ];
 
@@ -230,7 +230,7 @@ const Reports = () => {
       if (error.code === 'REPORT_GENERATION_FAILED') {
         errorMessage = 'Report generation failed. Please try again later.';
       } else if (error.code === 'INVALID_FORMAT') {
-        errorMessage = 'Invalid file format selected. Please choose PDF, Excel, or CSV.';
+        errorMessage = 'Invalid file format selected. Please choose PDF, XLSX, or CSV.';
       } else if (error.code === 'REPORT_NOT_FOUND') {
         errorMessage = 'No data available for the selected period. Please try a different time range.';
       } else if (error.message.includes('Authentication') || error.message.includes('401')) {
@@ -278,9 +278,9 @@ const Reports = () => {
   // Helper function to get format icon colors
   const getFormatIconColor = (format) => {
     const colorMap = {
-      'pdf': '#DC2626',     // Red
-      'excel': '#059669',   // Green
-      'csv': '#2563EB'      // Blue
+      'pdf': '#DC2626',
+      'xlsx': '#059669',
+      'csv': '#2563EB'
     };
     return colorMap[format] || '#6B7280';
   };
