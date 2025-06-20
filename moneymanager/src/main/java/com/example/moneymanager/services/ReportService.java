@@ -250,24 +250,77 @@ public class ReportService {
         if (reportId.contains("savings_report")) return "savings_report";
         return "comprehensive"; // default
     }
-    
+
     private Map<String, Object> generateReportData(Long userId, String reportType) {
         LocalDate endDate = LocalDate.now();
         LocalDate startDate = endDate.minusMonths(1);
-        
+
+        Map<String, Object> reportData = new HashMap<>();
+
         switch (reportType) {
             case "expense_analysis":
-                return getExpenseAnalysis(userId, "this-month", null, null, true, "TZS", "category");
+                reportData = getExpenseAnalysis(userId, "this-month", null, null, true, "TZS", "category");
+                reportData.put("reportTitle", "Expense Analysis Report");
+                break;
+
             case "income_vs_expenses":
-                return getIncomeVsExpenses(userId, "this-month", null, null, true, "TZS");
+                reportData = getIncomeVsExpenses(userId, "this-month", null, null, true, "month");
+                reportData.put("reportTitle", "Income vs Expenses Report");
+
+                // Extract some summary values for uniformity
+                Map<String, Object> summary = (Map<String, Object>) reportData.get("summary");
+                reportData.put("totalIncome", summary.get("totalIncome"));
+                reportData.put("totalExpenses", summary.get("totalExpenses"));
+                reportData.put("netIncome", summary.get("netIncome"));
+
+                // Add dummy transactions list to prevent nulls during rendering
+                reportData.put("transactions", new ArrayList<>());
+                break;
+
             case "budget_progress":
-                return getBudgetProgress(userId, "this-month", null, null, true);
+                reportData = getBudgetProgress(userId, "this-month", null, null, true);
+                reportData.put("reportTitle", "Budget Performance Report");
+
+                // Use performance summary to fill in totalSpent and totalBudgeted
+                reportData.put("totalExpenses", reportData.get("totalSpent"));
+                reportData.put("totalIncome", reportData.get("totalBudgeted"));
+                reportData.put("netIncome", ((BigDecimal) reportData.get("totalBudgeted")).subtract((BigDecimal) reportData.get("totalSpent")));
+
+                reportData.put("transactions", new ArrayList<>());
+                break;
+
             case "savings_report":
-                return getSavingsAnalysis(userId, "this-month", null, null, true, true);
+                Map<String, LocalDate> dateRangeS = parseDateRange("this-month", null, null);
+                LocalDate startS = dateRangeS.get("start");
+                LocalDate endS = dateRangeS.get("end");
+
+                reportData = getSavingsAnalysis(userId, "this-month", null, null, true, true);
+                reportData.put("reportTitle", "Savings Analysis Report");
+                reportData.put("dateRange", Map.of("startDate", startS.toString(), "endDate", endS.toString()));
+
+                Map<String, Object> summary2 = (Map<String, Object>) reportData.get("savingsSummary");
+                reportData.put("totalIncome", summary2.getOrDefault("targetSavings", BigDecimal.ZERO));
+                reportData.put("totalExpenses", ((BigDecimal) summary2.getOrDefault("targetSavings", BigDecimal.ZERO))
+                        .subtract((BigDecimal) summary2.getOrDefault("totalSaved", BigDecimal.ZERO)));
+                reportData.put("netIncome", summary2.get("totalSaved"));
+                reportData.put("transactions", new ArrayList<>());
+                break;
+
+
             default:
-                return getComprehensiveReport(userId, startDate, endDate);
+                reportData = getComprehensiveReport(userId, startDate, endDate);
+                reportData.put("reportTitle", "Comprehensive Financial Report");
+                break;
         }
+
+        // Ensure dateRange is present
+        if (!reportData.containsKey("dateRange")) {
+            reportData.put("dateRange", Map.of("startDate", startDate.toString(), "endDate", endDate.toString()));
+        }
+
+        return reportData;
     }
+
     
     private Map<String, Object> getComprehensiveReport(Long userId, LocalDate startDate, LocalDate endDate) {
         Map<String, Object> report = new HashMap<>();
