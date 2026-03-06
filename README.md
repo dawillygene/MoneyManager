@@ -1,8 +1,8 @@
 # Money Manager - Personal Finance Management System
 
 **Authors:** 
-- @FransiskaMatiko (Fransiska Matiko)
-- @dawillygene (ELIA WILLIAM MARIKI)
+- @FransiskaMatiko
+- @dawillygene
 
 ## 📋 Project Overview
 
